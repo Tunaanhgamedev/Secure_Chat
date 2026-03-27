@@ -5,6 +5,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.securechat.presentation.chat.ChatScreen
+import com.example.securechat.presentation.chat.VideoCallScreen
 import com.example.securechat.presentation.login.LoginScreen
 import com.example.securechat.presentation.register.RegisterScreen
 
@@ -27,7 +28,13 @@ fun SecureChatNavGraph() {
         }
         composable("home") {
             ChatScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCall = { navController.navigate("call") }
+            )
+        }
+        composable("call") {
+            VideoCallScreen(
+                onEndCall = { navController.popBackStack() }
             )
         }
     }
