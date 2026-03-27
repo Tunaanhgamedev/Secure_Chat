@@ -24,7 +24,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToCall: () -> Unit = {}
 ) {
     val messages by viewModel.messages.collectAsState()
     var inputText by remember { mutableStateOf("") }
@@ -35,6 +36,11 @@ fun ChatScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Secure Group Chat") },
+                actions = {
+                    IconButton(onClick = onNavigateToCall) {
+                        Icon(androidx.compose.material.icons.Icons.Default.Call, contentDescription = "Video Call")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
