@@ -6,9 +6,14 @@ import org.webrtc.DefaultVideoEncoderFactory
 import org.webrtc.EglBase
 import org.webrtc.PeerConnection
 import org.webrtc.PeerConnectionFactory
+import javax.inject.Inject
+import javax.inject.Singleton
+import dagger.hilt.android.qualifiers.ApplicationContext
 
-class WebRtcClient(
-    context: Context
+@Singleton
+class WebRtcClient @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val signalingClient: FirebaseSignalingClient
 ) {
     val eglBaseContext: EglBase.Context = EglBase.create().eglBaseContext
 
@@ -31,10 +36,28 @@ class WebRtcClient(
         val iceServers = listOf(
             PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer()
         )
-        // Without an RTC configuration and full backend, we return a mock-capable connection
+        // Set up real connection semantics
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
         }
         return peerConnectionFactory.createPeerConnection(rtcConfig, observer)
     }
+
+    fun sendOffer(callId: String, sdp: String) {
+        signalingClient.sendOffer(callId, sdp)
+    }
+
+    fun sendAnswer(callId: String, sdp: String) {
+        signalingClient.sendAnswer(callId, sdp)
+    }
+
+    fun sendIceCandidate(callId: String, candidate: String, sdpMid: String, sdpMLineIndex: Int, isCaller: Boolean) {
+        signalingClient.sendIceCandidate(callId, candidate, sdpMid, sdpMLineIndex, isCaller)
+    }
+
+    fun listenForAnswer(callId: String) = signalingClient.listenForAnswer(callId)
+    
+    fun listenForOffer(callId: String) = signalingClient.listenForOffer(callId)
+    
+    fun listenForIceCandidates(callId: String, isCaller: Boolean) = signalingClient.listenForIceCandidates(callId, isCaller)
 }
