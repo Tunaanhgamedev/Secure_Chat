@@ -8,12 +8,16 @@ import com.example.securechat.presentation.chat.ChatScreen
 import com.example.securechat.presentation.chat.VideoCallScreen
 import com.example.securechat.presentation.login.LoginScreen
 import com.example.securechat.presentation.register.RegisterScreen
+import com.example.securechat.presentation.home.UserListScreen
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun SecureChatNavGraph() {
     val navController = rememberNavController()
+    val auth = FirebaseAuth.getInstance()
+    val startDestination = if (auth.currentUser != null) "home" else "login"
 
-    NavHost(navController = navController, startDestination = "login") {
+    NavHost(navController = navController, startDestination = startDestination) {
         composable("login") {
             LoginScreen(
                 onNavigateToRegister = { navController.navigate("register") },
@@ -27,10 +31,19 @@ fun SecureChatNavGraph() {
             )
         }
         composable("home") {
-            ChatScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToCall = { navController.navigate("call") }
+            UserListScreen(
+                onUserClick = { user -> navController.navigate("chat/${user.id}") },
+                onLogout = { navController.navigate("login") { popUpTo("home") { inclusive = true } } }
             )
+        }
+        composable("chat/{userId}") { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId")
+            if (userId != null) {
+                ChatScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToCall = { navController.navigate("call") }
+                )
+            }
         }
         composable("call") {
             VideoCallScreen(

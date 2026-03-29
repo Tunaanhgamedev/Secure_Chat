@@ -1,37 +1,42 @@
 package com.example.securechat.presentation.chat
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.securechat.domain.model.Message
 import com.example.securechat.domain.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-    private val chatRepository: ChatRepository
+    private val chatRepository: ChatRepository,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    val messages: StateFlow<List<Message>> = chatRepository.getMessages()
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    private val otherUserId: String? = savedStateHandle.get<String>("userId")
+    
+    private val _messages = MutableStateFlow<List<Message>>(emptyList())
+    val messages: StateFlow<List<Message>> = _messages
 
     init {
-        chatRepository.connect()
-    }
-
-    fun sendMessage(content: String) {
-        if (content.isBlank()) return
-        viewModelScope.launch {
-            chatRepository.sendMessage(content.trim())
+        otherUserId?.let { id ->
+            viewModelScope.launch {
+                chatRepository.getMessages(id).collectLatest { msgs ->
+                    _messages.value = msgs
+                }
+            }
         }
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        chatRepository.disconnect()
+    fun sendMessage(content: String) {
+        if (content.isBlank() || otherUserId == null) return
+        viewModelScope.launch {
+            chatRepository.sendMessage(otherUserId, content.trim())
+        }
     }
 }
