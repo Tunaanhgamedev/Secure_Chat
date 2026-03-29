@@ -84,5 +84,8 @@ dependencies {
     // FCM & WebRTC
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.database)
     implementation(libs.webrtc)
+
+    implementation("androidx.compose.material:material-icons-extended")
 }

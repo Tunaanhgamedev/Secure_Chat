@@ -1,10 +1,30 @@
 {
   "project_info": {
     "project_number": "169015453660",
+    "firebase_url": "https://chat-ce4c8-default-rtdb.firebaseio.com",
     "project_id": "chat-ce4c8",
     "storage_bucket": "chat-ce4c8.firebasestorage.app"
   },
   "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:169015453660:android:3d9d4409b283beae911119",
+        "android_client_info": {
+          "package_name": "com.example.securechat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBdn_UvWvsiHmzMuCeJCVhQGP5Ho5QmodI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
     {
       "client_info": {
         "mobilesdk_app_id": "1:169015453660:android:a9624459e0256780911119",
