@@ -49,6 +49,7 @@ lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-
 navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+firebase-database = { group = "com.google.firebase", name = "firebase-database" }
 webrtc = { group = "io.getstream", name = "stream-webrtc-android", version.ref = "webrtc" }
 
 [plugins]
