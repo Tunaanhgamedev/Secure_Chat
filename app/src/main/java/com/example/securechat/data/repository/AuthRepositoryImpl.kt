@@ -1,59 +1,94 @@
 package com.example.securechat.data.repository
 
-import com.example.securechat.data.remote.AuthApi
 import com.example.securechat.domain.model.User
 import com.example.securechat.domain.repository.AuthRepository
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
-    private val api: AuthApi
+    private val firebaseAuth: FirebaseAuth
 ) : AuthRepository {
 
     private val cachedUser = MutableStateFlow<User?>(null)
+    private val usersRef = FirebaseDatabase.getInstance().getReference("users")
 
-    override suspend fun login(username: String, password: String): Result<User> {
+    init {
+        firebaseAuth.addAuthStateListener { auth ->
+            val currentUser = auth.currentUser
+            if (currentUser != null) {
+                cachedUser.value = User(
+                    id = currentUser.uid,
+                    username = currentUser.displayName ?: "",
+                    email = currentUser.email ?: "",
+                    token = null
+                )
+            } else {
+                cachedUser.value = null
+            }
+        }
+    }
+
+    override suspend fun login(email: String, password: String): Result<User> {
         return try {
-            val response = api.login(mapOf("username" to username, "password" to password))
-            if (response.isSuccessful && response.body() != null) {
-                val user = response.body()!!
+            val authResult = firebaseAuth.signInWithEmailAndPassword(email, password).await()
+            val firebaseUser = authResult.user
+            if (firebaseUser != null) {
+                val user = User(
+                    id = firebaseUser.uid,
+                    username = firebaseUser.displayName ?: "",
+                    email = firebaseUser.email ?: "",
+                    token = null
+                )
                 cachedUser.value = user
                 Result.success(user)
             } else {
-                Result.failure(Exception("Login failed: ${response.message()}"))
+                Result.failure(Exception("Unknown authentication error"))
             }
         } catch (e: Exception) {
-            // For testing without backend, mock a success response:
-            val fakeUser = User("1", username, "mock@email.com", "mock_token")
-            cachedUser.value = fakeUser
-            Result.success(fakeUser)
+            Result.failure(e)
         }
     }
 
     override suspend fun register(username: String, email: String, password: String): Result<User> {
         return try {
-            val response = api.register(mapOf("username" to username, "email" to email, "password" to password))
-            if (response.isSuccessful && response.body() != null) {
-                val user = response.body()!!
+            val authResult = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
+            val firebaseUser = authResult.user
+            if (firebaseUser != null) {
+                val profileUpdates = com.google.firebase.auth.userProfileChangeRequest {
+                    displayName = username
+                }
+                firebaseUser.updateProfile(profileUpdates).await()
+
+                val user = User(
+                    id = firebaseUser.uid,
+                    username = username,
+                    email = email,
+                    token = null
+                )
+                
+                usersRef.child(user.id).setValue(mapOf(
+                    "username" to username,
+                    "email" to email
+                )).await()
+
                 cachedUser.value = user
                 Result.success(user)
             } else {
-                Result.failure(Exception("Registration failed: ${response.message()}"))
+                Result.failure(Exception("Unknown authentication error"))
             }
         } catch (e: Exception) {
-            // Mock success for now, as API is not running
-            val fakeUser = User("1", username, email, "mock_token")
-            cachedUser.value = fakeUser
-            Result.success(fakeUser)
+            Result.failure(e)
         }
     }
 
-    override fun getCachedUser(): Flow<User?> {
-        return cachedUser
-    }
+    override fun getCachedUser(): Flow<User?> = cachedUser
 
     override suspend fun logout() {
+        firebaseAuth.signOut()
         cachedUser.value = null
     }
 }
