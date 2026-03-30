@@ -11,21 +11,24 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class ChatRepositoryImpl @Inject constructor(
     private val messageDao: MessageDao
 ) : ChatRepository {
 
     private val db = FirebaseDatabase.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // ─── User Discovery ─────────────────────────────────────────────────────────
     override fun getUsers(): Flow<List<User>> = callbackFlow {
@@ -74,17 +77,43 @@ class ChatRepositoryImpl @Inject constructor(
         awaitClose { ref.removeEventListener(listener) }
     }
 
-    // ─── 1-1 Messages with Offline Caching ───────────────────────────────────────
+    // ─── 1-1 Messages with Life-cycle aware sync ─────────────────────────────────
     override fun getMessages(otherUserId: String): Flow<List<Message>> {
-        val myId = auth.currentUser?.uid ?: return callbackFlow { trySend(emptyList()); close() }
+        val myId   = auth.currentUser?.uid ?: return flowOf(emptyList())
         val chatId = chatId(myId, otherUserId)
 
-        // Remote listener to update local DB
-        syncFirebaseToLocal(db.getReference("messages").child(chatId), chatId)
+        return callbackFlow {
+            val listener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val messages = snapshot.children.mapNotNull { child ->
+                        MessageEntity(
+                            id         = child.key ?: return@mapNotNull null,
+                            senderId   = child.child("senderId").getValue(String::class.java) ?: "",
+                            senderName = child.child("senderName").getValue(String::class.java) ?: "",
+                            content    = child.child("content").getValue(String::class.java) ?: "",
+                            timestamp  = child.child("timestamp").getValue(Long::class.java) ?: 0L,
+                            isMine     = child.child("senderId").getValue(String::class.java) == myId,
+                            chatId     = chatId
+                        )
+                    }
+                    // Update Local DB
+                    launch { messageDao.insertMessages(messages) }
+                }
+                override fun onCancelled(error: DatabaseError) {}
+            }
+            
+            val ref = db.getReference("messages").child(chatId)
+            ref.addValueEventListener(listener)
+            
+            // Emit from local DB whenever it changes
+            val localFlow = messageDao.getMessages(chatId).map { entities ->
+                entities.map { it.toDomain() }
+            }
+            launch {
+                localFlow.collect { trySend(it) }
+            }
 
-        // Return flow from local DB
-        return messageDao.getMessages(chatId).map { entities ->
-            entities.map { it.toDomain() }
+            awaitClose { ref.removeEventListener(listener) }
         }
     }
 
@@ -93,11 +122,10 @@ class ChatRepositoryImpl @Inject constructor(
         val myName = auth.currentUser?.displayName ?: auth.currentUser?.email ?: "Tôi"
         val chatId = chatId(myId, otherUserId)
 
-        // Save locally first for optimistic UI (optional, but good)
-        val msgId = db.getReference("messages").child(chatId).push().key ?: return
+        val msgId     = db.getReference("messages").child(chatId).push().key ?: return
         val timestamp = System.currentTimeMillis()
         
-        // Save to Remote (Firebase)
+        // Push to Firebase
         db.getReference("messages").child(chatId).child(msgId).setValue(mapOf(
             "senderId"   to myId,
             "senderName" to myName,
@@ -105,20 +133,44 @@ class ChatRepositoryImpl @Inject constructor(
             "timestamp"  to timestamp
         )).await()
 
-        // Update conversations
         updateConversationsSync(myId, otherUserId, content, timestamp)
     }
 
-    // ─── Group Chat with Offline Caching ─────────────────────────────────────────
+    // ─── Group Chat with Life-cycle aware sync ────────────────────────────────────
     override fun getGroupMessages(): Flow<List<Message>> {
+        val myId   = auth.currentUser?.uid
         val chatId = "group"
-        
-        // Remote listener to update local DB
-        syncFirebaseToLocal(db.getReference("group_messages"), chatId)
 
-        // Return flow from local DB
-        return messageDao.getMessages(chatId).map { entities ->
-            entities.map { it.toDomain() }
+        return callbackFlow {
+            val listener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val messages = snapshot.children.mapNotNull { child ->
+                        MessageEntity(
+                            id         = child.key ?: return@mapNotNull null,
+                            senderId   = child.child("senderId").getValue(String::class.java) ?: "",
+                            senderName = child.child("senderName").getValue(String::class.java) ?: "",
+                            content    = child.child("content").getValue(String::class.java) ?: "",
+                            timestamp  = child.child("timestamp").getValue(Long::class.java) ?: 0L,
+                            isMine     = child.child("senderId").getValue(String::class.java) == myId,
+                            chatId     = chatId
+                        )
+                    }
+                    launch { messageDao.insertMessages(messages) }
+                }
+                override fun onCancelled(error: DatabaseError) {}
+            }
+
+            val ref = db.getReference("group_messages")
+            ref.addValueEventListener(listener)
+
+            val localFlow = messageDao.getMessages(chatId).map { entities ->
+                entities.map { it.toDomain() }
+            }
+            launch {
+                localFlow.collect { trySend(it) }
+            }
+
+            awaitClose { ref.removeEventListener(listener) }
         }
     }
 
@@ -133,36 +185,8 @@ class ChatRepositoryImpl @Inject constructor(
         )).await()
     }
 
-    // ─── Sync Helper ──────────────────────────────────────────────────────────────
-    private fun syncFirebaseToLocal(ref: com.google.firebase.database.DatabaseReference, chatId: String) {
-        val myId = auth.currentUser?.uid
-        ref.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                // Background update using a temporary coroutine scope or GlobalScope (with care) 
-                // In a real app, use WorkManager or a lifecycle-aware scope.
-                // For simplicity here, we'll map and save.
-                val entities = snapshot.children.mapNotNull { child ->
-                    MessageEntity(
-                        id         = child.key ?: return@mapNotNull null,
-                        senderId   = child.child("senderId").getValue(String::class.java) ?: "",
-                        senderName = child.child("senderName").getValue(String::class.java) ?: "",
-                        content    = child.child("content").getValue(String::class.java) ?: "",
-                        timestamp  = child.child("timestamp").getValue(Long::class.java) ?: 0L,
-                        isMine     = child.child("senderId").getValue(String::class.java) == myId,
-                        chatId     = chatId
-                    )
-                }
-                // We'll use a hack to run this suspend function inside the callback
-                kotlinx.coroutines.GlobalScope.launch {
-                    messageDao.insertMessages(entities)
-                }
-            }
-            override fun onCancelled(error: DatabaseError) {}
-        })
-    }
-
+    // ─── Sync Helper (Private logic) ──────────────────────────────────────────────
     private suspend fun updateConversationsSync(myId: String, otherUserId: String, content: String, ts: Long) {
-        // Fetch peer info then update both sides of /conversations
         val peerSnap = db.getReference("users").child(otherUserId).get().await()
         val peerName  = peerSnap.child("username").getValue(String::class.java) ?: ""
         val peerEmail = peerSnap.child("email").getValue(String::class.java) ?: ""
@@ -196,6 +220,5 @@ class ChatRepositoryImpl @Inject constructor(
         isMine     = isMine
     )
 
-    // ─── Helpers ─────────────────────────────────────────────────────────────────
     private fun chatId(a: String, b: String) = if (a < b) "${a}_$b" else "${b}_$a"
 }
