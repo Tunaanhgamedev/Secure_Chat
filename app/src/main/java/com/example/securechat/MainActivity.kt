@@ -31,18 +31,21 @@ class MainActivity : ComponentActivity() {
         
         // Track App Lifecycle for Presence
         ProcessLifecycleOwner.get().lifecycle.addObserver(LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_START -> {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        authRepository.updatePresence(isOnline = true)
+            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            if (currentUser != null) {
+                when (event) {
+                    Lifecycle.Event.ON_START -> {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            authRepository.updatePresence(isOnline = true)
+                        }
                     }
-                }
-                Lifecycle.Event.ON_STOP -> {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        authRepository.updatePresence(isOnline = false)
+                    Lifecycle.Event.ON_STOP -> {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            authRepository.updatePresence(isOnline = false)
+                        }
                     }
+                    else -> {}
                 }
-                else -> {}
             }
         })
 

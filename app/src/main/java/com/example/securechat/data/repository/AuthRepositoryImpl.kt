@@ -12,10 +12,8 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.storage.FirebaseStorage
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,13 +26,23 @@ class AuthRepositoryImpl @Inject constructor(
     private val cachedUser = MutableStateFlow<User?>(null)
     private val usersRef = FirebaseDatabase.getInstance().getReference("users")
     private val storage = FirebaseStorage.getInstance().getReference("avatars")
+    
+    // Manage listener to avoid memory leak and freeze
+    private var currentUserListener: ValueEventListener? = null
+    private var currentPeerId: String? = null
 
     init {
         firebaseAuth.addAuthStateListener { auth ->
             val currentUser = auth.currentUser
+            
+            // Remove previous listener if exists
+            currentPeerId?.let { uid ->
+                currentUserListener?.let { usersRef.child(uid).removeEventListener(it) }
+            }
+
             if (currentUser != null) {
-                // Listen to database changes for extra fields (isOnline, lastSeen, photoUrl, etc.)
-                usersRef.child(currentUser.uid).addValueEventListener(object : ValueEventListener {
+                currentPeerId = currentUser.uid
+                currentUserListener = object : ValueEventListener {
                     override fun onDataChange(snapshot: DataSnapshot) {
                         cachedUser.value = User(
                             id = currentUser.uid,
@@ -47,9 +55,12 @@ class AuthRepositoryImpl @Inject constructor(
                         )
                     }
                     override fun onCancelled(error: DatabaseError) {}
-                })
+                }
+                usersRef.child(currentUser.uid).addValueEventListener(currentUserListener!!)
             } else {
                 cachedUser.value = null
+                currentPeerId = null
+                currentUserListener = null
             }
         }
     }
@@ -119,16 +130,13 @@ class AuthRepositoryImpl @Inject constructor(
         if (isHidden) return
         val userStatusRef = usersRef.child(uid)
         
-        // OnDisconnect: Set online to false and lastSeen to current server time
         userStatusRef.child("isOnline").onDisconnect().setValue(false)
         userStatusRef.child("lastSeen").onDisconnect().setValue(ServerValue.TIMESTAMP)
-        
-        // Mark as online
         userStatusRef.child("isOnline").setValue(true)
     }
 
     override suspend fun updatePresence(isOnline: Boolean, isHidden: Boolean?): Result<Unit> = try {
-        val uid = firebaseAuth.currentUser?.uid ?: throw Exception("Chưa đăng nhập")
+        val uid = firebaseAuth.currentUser?.uid ?: run { return Result.success(Unit) } // Fix: Gracefully exit instead of crash on logout
         val updates = mutableMapOf<String, Any>("isOnline" to isOnline)
         if (isOnline) updates["lastSeen"] = System.currentTimeMillis()
         isHidden?.let { 
@@ -151,9 +159,17 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun logout() {
         val uid = firebaseAuth.currentUser?.uid
+        
+        // Remove listener immediately
+        currentPeerId?.let { peerId ->
+            currentUserListener?.let { usersRef.child(peerId).removeEventListener(it) }
+        }
+        currentPeerId = null
+        currentUserListener = null
+
         if (uid != null) {
             usersRef.child(uid).child("isOnline").setValue(false)
-            usersRef.child(uid).child("lastSeen").setValue(ServerValue.TIMESTAMP)
+            usersRef.child(uid).child("lastSeen").setValue(ServerValue.TIMESTAMP).await()
         }
         firebaseAuth.signOut()
         cachedUser.value = null
