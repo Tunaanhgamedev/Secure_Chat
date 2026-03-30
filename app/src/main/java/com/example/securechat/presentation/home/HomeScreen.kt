@@ -138,6 +138,7 @@ fun HomeScreen(
                     HomeTab.MESSAGES -> ConversationsTab(conversations, onConversationClick)
                     HomeTab.FIND_FRIENDS -> FindFriendsTab(filteredUsers, onUserClick)
                     HomeTab.REQUESTS -> FriendRequestsTab(friendRequests, viewModel::acceptFriend, viewModel::rejectFriend)
+                    HomeTab.MESSAGE_REQUESTS -> ConversationsTab(messageRequests, onConversationClick)
                 }
             }
         }
@@ -178,7 +179,12 @@ fun DrawerContent(
         
         HorizontalDivider(color = SurfaceVariant, modifier = Modifier.padding(vertical = 16.dp))
 
-        DrawerItem(Icons.Default.Forum, "Tin nhắn đang chờ", count = messageRequestCount, onClick = { /* Pending chat tab */ })
+        DrawerItem(
+            Icons.Default.Forum, 
+            "Tin nhắn đang chờ", 
+            count = messageRequestCount, 
+            onClick = { onTabSelect(HomeTab.MESSAGE_REQUESTS) }
+        )
         DrawerItem(Icons.Default.PersonAdd, "Lời mời kết bạn", count = friendRequestCount, onClick = { onTabSelect(HomeTab.REQUESTS) })
 
         Spacer(modifier = Modifier.weight(1f))
