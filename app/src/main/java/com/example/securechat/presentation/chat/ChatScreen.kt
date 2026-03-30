@@ -24,8 +24,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.securechat.domain.model.Message
-import com.example.securechat.presentation.home.*
+import com.example.securechat.presentation.home.AvatarCircle
 import kotlinx.coroutines.launch
+
+// Shared Colors for Meta style in ChatScreen
+private val MessengerBlue = Color(0xFF0084FF)
+private val DarkBackground = Color(0xFF1C1C1E)
+private val SurfaceVariant = Color(0xFF2C2C2E)
+private val SecondaryText = Color(0xFF8E8E93)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,12 +63,21 @@ fun ChatScreen(
                         AvatarCircle(name = peerName, url = peerUser?.photoUrl, size = 36, isOnline = isPeerActuallyOnline)
                         Spacer(Modifier.width(10.dp))
                         Column {
-                            val statusText = if (isPeerActuallyOnline) "Đang hoạt động"
-                            else if (peerUser?.lastSeen != null && peerUser?.lastSeen!! > 0L) "Hoạt động ${com.example.securechat.util.TimeUtils.getRelativeTime(peerUser?.lastSeen!!)}"
-                            else "Ngoại tuyến"
+                            val lastSeen = peerUser?.lastSeen
+                            val statusText = if (isPeerActuallyOnline) {
+                                "Đang hoạt động"
+                            } else if (lastSeen != null && lastSeen > 0L) {
+                                "Hoạt động ${com.example.securechat.util.TimeUtils.getRelativeTime(lastSeen)}"
+                            } else {
+                                "Ngoại tuyến"
+                            }
 
                             Text(peerName, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp)
-                            Text(statusText, color = if (isPeerActuallyOnline) Color(0xFF30D158) else SecondaryText, fontSize = 11.sp)
+                            Text(
+                                text = statusText,
+                                color = if (isPeerActuallyOnline) Color(0xFF30D158) else Color(0xFF8E8E93), // Using hardcoded or local colors to be safe
+                                fontSize = 11.sp
+                            )
                         }
                     }
                 },
