@@ -12,4 +12,13 @@ interface ChatRepository {
     suspend fun sendMessage(otherUserId: String, content: String)
     fun getGroupMessages(): Flow<List<Message>>
     suspend fun sendGroupMessage(content: String)
+    
+    // Pro Features (Version 2.0)
+    fun getFriendRequests(): Flow<List<User>>
+    suspend fun sendFriendRequest(targetUserId: String)
+    suspend fun acceptFriendRequest(senderUserId: String)
+    suspend fun rejectFriendRequest(senderUserId: String)
+    fun isFriend(userId: String): Flow<Boolean>
+    
+    fun getMessageRequests(): Flow<List<Conversation>>
 }

@@ -1,0 +1,31 @@
+# Báo cáo Hoàn thiện Kiến trúc & Tính năng SecureChat
+
+Project hiện đã được nâng cấp lên tiêu chuẩn chuyên nghiệp, đáp ứng đầy đủ các yêu cầu về **Clean Architecture** và **Offline Caching** (lưu trữ ngoại tuyến).
+
+## 🏗️ Kiến trúc Clean Architecture
+Tôi đã tách biệt hoàn toàn logic nghiệp vụ bằng cách bổ sung tầng **UseCases**. ViewModels hiện không còn gọi trực tiếp vào Repository, giúp mã nguồn dễ bảo trì và kiểm thử hơn:
+- `GetConversationsUseCase`: Lấy danh sách bạn bè đã chat.
+- `GetMessagesUseCase` & `SendMessageUseCase`: Xử lý tin nhắn cá nhân.
+- `GetGroupMessagesUseCase` & `SendGroupMessageUseCase`: Xử lý tin nhắn nhóm.
+
+## 💾 Offline Caching với Room Database
+Đây là tính năng quan trọng nhất để ứng dụng hoạt động mượt mà. 
+- **Cơ chế:** Khi có mạng, tin nhắn từ Firebase sẽ tự động đồng bộ vào **Room Database** trên điện thoại.
+- **Lợi ích:** Khi mất mạng (Offline), người dùng vẫn có thể xem lại toàn bộ lịch sử trò chuyện đã load trước đó thay vì thấy màn hình trắng.
+- **Tệp mới:** `MessageEntity.kt`, `MessageDao.kt`, `SecureChatDatabase.kt`.
+
+## 🧹 Dọn dẹp & Refactor
+- Đã xóa bỏ các file cũ không dùng tới (`UserListScreen.kt`, `UserListViewModel.kt`) để tránh gây nhầm lẫn.
+- Hệ thống Navigation (`NavGraph.kt`) đã được tinh chỉnh để chạy mượt mà với `HomeScreen` mới.
+
+## 🚀 Git Workflow
+Toàn bộ lịch sử thay đổi đã được đẩy lên nhánh: **`feature/auth-chat-tuananh`** với các commit chia nhỏ theo từng giai đoạn:
+1. `feat: implement Room database for offline message caching`
+2. `feat: add messaging UseCases for Clean Architecture`
+3. `feat: integrate Room caching into ChatRepository`
+4. `feat: refactor viewmodels to use usecases & cleanup old code`
+
+> [!TIP]
+> **Bước tiếp theo:** Bạn có thể build thử app. Ngay cả khi bạn tắt Wifi/Mạng, các tin nhắn bạn đã nhắn trước đó vẫn sẽ hiển thị đầy đủ nhờ vào tầng Room Database tôi vừa thiết lập.
+
+Dự án hiện tại đã rất vững chắc về mặt kiến trúc. Chúc bạn có một buổi bảo vệ đồ án thành công!

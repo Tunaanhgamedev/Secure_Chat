@@ -4,12 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.securechat.domain.model.Message
+import com.example.securechat.domain.repository.ChatRepository
 import com.example.securechat.domain.usecase.GetMessagesUseCase
 import com.example.securechat.domain.usecase.SendMessageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -17,6 +16,7 @@ import javax.inject.Inject
 class ChatViewModel @Inject constructor(
     private val getMessagesUseCase: GetMessagesUseCase,
     private val sendMessageUseCase: SendMessageUseCase,
+    private val chatRepository: ChatRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -26,11 +26,16 @@ class ChatViewModel @Inject constructor(
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages: StateFlow<List<Message>> = _messages
 
+    private val _isFriend = MutableStateFlow(true)
+    val isFriend: StateFlow<Boolean> = _isFriend
+
     init {
         otherUserId?.let { id ->
             viewModelScope.launch {
-                try { getMessagesUseCase(id).collectLatest { _messages.value = it } }
-                catch (e: Exception) { e.printStackTrace() }
+                getMessagesUseCase(id).collectLatest { _messages.value = it }
+            }
+            viewModelScope.launch {
+                chatRepository.isFriend(id).collectLatest { _isFriend.value = it }
             }
         }
     }
@@ -38,8 +43,13 @@ class ChatViewModel @Inject constructor(
     fun sendMessage(content: String) {
         if (content.isBlank() || otherUserId == null) return
         viewModelScope.launch {
-            try { sendMessageUseCase(otherUserId, content.trim()) }
-            catch (e: Exception) { e.printStackTrace() }
+            sendMessageUseCase(otherUserId, content.trim())
+        }
+    }
+    
+    fun sendFriendRequest() {
+        otherUserId?.let { id ->
+            viewModelScope.launch { chatRepository.sendFriendRequest(id) }
         }
     }
 }

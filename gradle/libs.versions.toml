@@ -19,6 +19,7 @@ navigationCompose = "2.8.0"
 googleServices = "4.4.1"
 firebaseBom = "33.1.2"
 webrtc = "1.1.2"
+coil = "2.6.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -52,6 +53,8 @@ firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging
 firebase-database = { group = "com.google.firebase", name = "firebase-database" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 webrtc = { group = "io.getstream", name = "stream-webrtc-android", version.ref = "webrtc" }
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

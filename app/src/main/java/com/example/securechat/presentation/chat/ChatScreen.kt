@@ -1,5 +1,6 @@
 package com.example.securechat.presentation.chat
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,15 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.securechat.domain.model.Message
-import com.example.securechat.presentation.home.AvatarCircle
+import com.example.securechat.presentation.home.*
 import kotlinx.coroutines.launch
-
-private val Primary  = Color(0xFF0A84FF)
-private val BgDark   = Color(0xFF121212)
-private val Surface1 = Color(0xFF1E1E1E)
-private val Surface2 = Color(0xFF2C2C2E)
-private val TextMain = Color(0xFFFFFFFF)
-private val TextSub  = Color(0xFF8E8E93)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +36,7 @@ fun ChatScreen(
     onNavigateToCall: () -> Unit
 ) {
     val messages by viewModel.messages.collectAsState()
+    val isFriend by viewModel.isFriend.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -50,7 +46,7 @@ fun ChatScreen(
     }
 
     Scaffold(
-        containerColor = BgDark,
+        containerColor = DarkBackground,
         topBar = {
             TopAppBar(
                 title = {
@@ -58,46 +54,53 @@ fun ChatScreen(
                         AvatarCircle(name = peerName, size = 36)
                         Spacer(Modifier.width(10.dp))
                         Column {
-                            Text(peerName, fontWeight = FontWeight.Bold, color = TextMain, fontSize = 16.sp)
-                            Text("Đang hoạt động", color = Color(0xFF30D158), fontSize = 11.sp)
+                            Text(peerName, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp)
+                            Text(if (isFriend) "Đang hoạt động" else "Người lạ", color = if (isFriend) Color(0xFF30D158) else SecondaryText, fontSize = 11.sp)
                         }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Primary)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = MessengerBlue)
                     }
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToCall) {
-                        Icon(Icons.Default.Call, contentDescription = "Gọi Video", tint = Primary)
+                    IconButton(
+                        onClick = onNavigateToCall,
+                        enabled = isFriend
+                    ) {
+                        Icon(
+                            Icons.Default.Call, 
+                            contentDescription = "Gọi Video", 
+                            tint = if (isFriend) MessengerBlue else SecondaryText
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceVariant)
             )
         },
         bottomBar = {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Surface1)
+                    .background(SurfaceVariant)
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
-                    placeholder = { Text("Nhắn tin…", color = TextSub) },
+                    placeholder = { Text("Nhắn tin…", color = SecondaryText) },
                     singleLine = true,
                     shape = RoundedCornerShape(24.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor      = Primary,
-                        unfocusedBorderColor    = Surface2,
-                        focusedTextColor        = TextMain,
-                        unfocusedTextColor      = TextMain,
-                        cursorColor             = Primary,
-                        focusedContainerColor   = Surface2,
-                        unfocusedContainerColor = Surface2
+                        focusedBorderColor      = MessengerBlue,
+                        unfocusedBorderColor    = SurfaceVariant,
+                        focusedTextColor        = Color.White,
+                        unfocusedTextColor      = Color.White,
+                        cursorColor             = MessengerBlue,
+                        focusedContainerColor   = DarkBackground,
+                        unfocusedContainerColor = DarkBackground
                     ),
                     modifier = Modifier.weight(1f)
                 )
@@ -110,24 +113,49 @@ fun ChatScreen(
                             coroutineScope.launch { if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1) }
                         }
                     },
-                    modifier = Modifier.size(48.dp).clip(CircleShape).background(Primary)
+                    modifier = Modifier.size(48.dp).clip(CircleShape).background(MessengerBlue)
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Gửi", tint = Color.White)
                 }
             }
         }
     ) { paddingValues ->
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            item { Spacer(Modifier.height(8.dp)) }
-            items(messages, key = { it.id }) { msg -> MessengerBubble(msg) }
-            item { Spacer(Modifier.height(8.dp)) }
+        Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+            
+            // Friend Request Banner
+            AnimatedVisibility(visible = !isFriend) {
+                Surface(
+                    color = SurfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.PersonAdd, contentDescription = null, tint = MessengerBlue)
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Chưa là bạn bè", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Tin nhắn sẽ được gửi vào mục Tin nhắn chờ.", color = SecondaryText, fontSize = 12.sp)
+                        }
+                        TextButton(onClick = { viewModel.sendFriendRequest() }) {
+                            Text("Thêm bạn", color = MessengerBlue)
+                        }
+                    }
+                }
+            }
+
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                item { Spacer(Modifier.height(8.dp)) }
+                items(messages, key = { it.id }) { msg -> MessengerBubble(msg) }
+                item { Spacer(Modifier.height(8.dp)) }
+            }
         }
     }
 }
@@ -135,7 +163,7 @@ fun ChatScreen(
 @Composable
 fun MessengerBubble(msg: Message) {
     val alignment = if (msg.isMine) Alignment.CenterEnd else Alignment.CenterStart
-    val bubbleColor = if (msg.isMine) Primary else Surface2
+    val bubbleColor = if (msg.isMine) MessengerBlue else SurfaceVariant
     val textColor = Color.White
 
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = alignment) {

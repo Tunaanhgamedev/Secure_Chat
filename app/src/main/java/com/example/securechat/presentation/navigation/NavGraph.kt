@@ -14,6 +14,7 @@ import com.example.securechat.presentation.chat.VideoCallScreen
 import com.example.securechat.presentation.groupchat.GroupChatScreen
 import com.example.securechat.presentation.home.HomeScreen
 import com.example.securechat.presentation.login.LoginScreen
+import com.example.securechat.presentation.profile.ProfileScreen
 import com.example.securechat.presentation.register.RegisterScreen
 import com.google.firebase.auth.FirebaseAuth
 
@@ -56,10 +57,15 @@ fun SecureChatNavGraph() {
                     )
                 },
                 onGroupChatClick = { navController.navigate("group_chat") },
+                onProfileClick = { navController.navigate("profile") },
                 onLogout = {
                     navController.navigate("login") { popUpTo("home") { inclusive = true } }
                 }
             )
+        }
+
+        composable("profile") {
+            ProfileScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(

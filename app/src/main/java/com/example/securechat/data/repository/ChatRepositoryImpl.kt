@@ -42,6 +42,7 @@ class ChatRepositoryImpl @Inject constructor(
                         id = uid,
                         username = child.child("username").getValue(String::class.java) ?: "",
                         email = child.child("email").getValue(String::class.java) ?: "",
+                        photoUrl = child.child("photoUrl").getValue(String::class.java)
                     )
                 }
                 trySend(users)
@@ -55,10 +56,12 @@ class ChatRepositoryImpl @Inject constructor(
         awaitClose { ref.removeEventListener(listener) }
     }
 
-    // ─── Conversations (recent chats) ────────────────────────────────────────────
-    override fun getConversations(): Flow<List<Conversation>> = callbackFlow {
-        val myUid = auth.currentUser?.uid ?: run { trySend(emptyList()); close(); return@callbackFlow }
+    // ─── Conversations & Message Requests ────────────────────────────────────────
+    override fun getConversations(): Flow<List<Conversation>> = getConversationFlow("conversations")
+    override fun getMessageRequests(): Flow<List<Conversation>> = getConversationFlow("message_requests")
 
+    private fun getConversationFlow(node: String): Flow<List<Conversation>> = callbackFlow {
+        val myUid = auth.currentUser?.uid ?: run { trySend(emptyList()); close(); return@callbackFlow }
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val conversations = snapshot.children.mapNotNull { child ->
@@ -72,20 +75,86 @@ class ChatRepositoryImpl @Inject constructor(
                 }.sortedByDescending { it.lastTimestamp }
                 trySend(conversations)
             }
-            override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
-            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
         }
-        val ref = db.getReference("conversations").child(myUid)
+        val ref = db.getReference(node).child(myUid)
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
     }
 
-    // ─── 1-1 Messages with Life-cycle aware sync ─────────────────────────────────
+    // ─── Friend System ──────────────────────────────────────────────────────────
+    override fun getFriendRequests(): Flow<List<User>> = callbackFlow {
+        val myUid = auth.currentUser?.uid ?: run { trySend(emptyList()); close(); return@callbackFlow }
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                launch {
+                    val users = snapshot.children.mapNotNull { child ->
+                        val senderId = child.key ?: return@mapNotNull null
+                        val userSnap = db.getReference("users").child(senderId).get().await()
+                        User(
+                            id = senderId,
+                            username = userSnap.child("username").getValue(String::class.java) ?: "",
+                            email = userSnap.child("email").getValue(String::class.java) ?: "",
+                            photoUrl = userSnap.child("photoUrl").getValue(String::class.java)
+                        )
+                    }
+                    trySend(users)
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        }
+        val ref = db.getReference("friend_requests").child(myUid)
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    override suspend fun sendFriendRequest(targetUserId: String) {
+        val myUid = auth.currentUser?.uid ?: return
+        db.getReference("friend_requests").child(targetUserId).child(myUid).setValue(true).await()
+    }
+
+    override suspend fun acceptFriendRequest(senderUserId: String) {
+        val myUid = auth.currentUser?.uid ?: return
+        db.getReference("friends").child(myUid).child(senderUserId).setValue(true)
+        db.getReference("friends").child(senderUserId).child(myUid).setValue(true)
+        db.getReference("friend_requests").child(myUid).child(senderUserId).removeValue()
+        
+        // Move message request to conversations if exists
+        val reqSnap = db.getReference("message_requests").child(myUid).child(senderUserId).get().await()
+        if (reqSnap.exists()) {
+            val data = reqSnap.value
+            db.getReference("conversations").child(myUid).child(senderUserId).setValue(data)
+            db.getReference("message_requests").child(myUid).child(senderUserId).removeValue()
+            
+            // Also move for the other side
+            val otherReqSnap = db.getReference("message_requests").child(senderUserId).child(myUid).get().await()
+            if (otherReqSnap.exists()) {
+                db.getReference("conversations").child(senderUserId).child(myUid).setValue(otherReqSnap.value)
+                db.getReference("message_requests").child(senderUserId).child(myUid).removeValue()
+            }
+        }
+    }
+
+    override suspend fun rejectFriendRequest(senderUserId: String) {
+        val myUid = auth.currentUser?.uid ?: return
+        db.getReference("friend_requests").child(myUid).child(senderUserId).removeValue()
+    }
+
+    override fun isFriend(userId: String): Flow<Boolean> = callbackFlow {
+        val myUid = auth.currentUser?.uid ?: run { trySend(false); close(); return@callbackFlow }
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) { trySend(snapshot.exists()) }
+            override fun onCancelled(error: DatabaseError) {}
+        }
+        val ref = db.getReference("friends").child(myUid).child(userId)
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    // ─── Messaging ─────────────────────────────────────────────────────────────
     override fun getMessages(otherUserId: String): Flow<List<Message>> {
         val myId   = auth.currentUser?.uid ?: return flowOf(emptyList())
         val chatId = chatId(myId, otherUserId)
-
         return callbackFlow {
             val listener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
@@ -100,23 +169,14 @@ class ChatRepositoryImpl @Inject constructor(
                             chatId     = chatId
                         )
                     }
-                    // Update Local DB
                     launch { messageDao.insertMessages(messages) }
                 }
                 override fun onCancelled(error: DatabaseError) {}
             }
-            
             val ref = db.getReference("messages").child(chatId)
             ref.addValueEventListener(listener)
-            
-            // Emit from local DB whenever it changes
-            val localFlow = messageDao.getMessages(chatId).map { entities ->
-                entities.map { it.toDomain() }
-            }
-            launch {
-                localFlow.collect { trySend(it) }
-            }
-
+            val localFlow = messageDao.getMessages(chatId).map { entities -> entities.map { it.toDomain() } }
+            launch { localFlow.collect { trySend(it) } }
             awaitClose { ref.removeEventListener(listener) }
         }
     }
@@ -125,11 +185,9 @@ class ChatRepositoryImpl @Inject constructor(
         val myId   = auth.currentUser?.uid ?: return
         val myName = auth.currentUser?.displayName ?: auth.currentUser?.email ?: "Tôi"
         val chatId = chatId(myId, otherUserId)
-
         val msgId     = db.getReference("messages").child(chatId).push().key ?: return
         val timestamp = System.currentTimeMillis()
         
-        // Push to Firebase
         db.getReference("messages").child(chatId).child(msgId).setValue(mapOf(
             "senderId"   to myId,
             "senderName" to myName,
@@ -137,14 +195,15 @@ class ChatRepositoryImpl @Inject constructor(
             "timestamp"  to timestamp
         )).await()
 
-        updateConversationsSync(myId, otherUserId, content, timestamp)
+        val friendStatus = isFriend(otherUserId).first()
+        val node = if (friendStatus) "conversations" else "message_requests"
+        updateConversationsSync(myId, otherUserId, content, timestamp, node)
     }
 
-    // ─── Group Chat with Life-cycle aware sync ────────────────────────────────────
+    // ─── Group Chat ──────────────────────────────────────────────────────────────
     override fun getGroupMessages(): Flow<List<Message>> {
-        val myId   = auth.currentUser?.uid
+        val myId = auth.currentUser?.uid
         val chatId = "group"
-
         return callbackFlow {
             val listener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
@@ -163,17 +222,10 @@ class ChatRepositoryImpl @Inject constructor(
                 }
                 override fun onCancelled(error: DatabaseError) {}
             }
-
             val ref = db.getReference("group_messages")
             ref.addValueEventListener(listener)
-
-            val localFlow = messageDao.getMessages(chatId).map { entities ->
-                entities.map { it.toDomain() }
-            }
-            launch {
-                localFlow.collect { trySend(it) }
-            }
-
+            val localFlow = messageDao.getMessages(chatId).map { entities -> entities.map { it.toDomain() } }
+            launch { localFlow.collect { trySend(it) } }
             awaitClose { ref.removeEventListener(listener) }
         }
     }
@@ -189,8 +241,7 @@ class ChatRepositoryImpl @Inject constructor(
         )).await()
     }
 
-    // ─── Sync Helper (Private logic) ──────────────────────────────────────────────
-    private suspend fun updateConversationsSync(myId: String, otherUserId: String, content: String, ts: Long) {
+    private suspend fun updateConversationsSync(myId: String, otherUserId: String, content: String, ts: Long, node: String) {
         val peerSnap = db.getReference("users").child(otherUserId).get().await()
         val peerName  = peerSnap.child("username").getValue(String::class.java) ?: ""
         val peerEmail = peerSnap.child("email").getValue(String::class.java) ?: ""
@@ -198,31 +249,13 @@ class ChatRepositoryImpl @Inject constructor(
         val myNameDb  = mySnap.child("username").getValue(String::class.java) ?: ""
         val myEmail   = mySnap.child("email").getValue(String::class.java) ?: ""
 
-        db.getReference("conversations").child(myId).child(otherUserId).setValue(mapOf(
-            "peerId"        to otherUserId,
-            "peerName"      to peerName,
-            "peerEmail"     to peerEmail,
-            "lastMessage"   to content,
-            "lastTimestamp" to ts
-        ))
-        db.getReference("conversations").child(otherUserId).child(myId).setValue(mapOf(
-            "peerId"        to myId,
-            "peerName"      to myNameDb,
-            "peerEmail"     to myEmail,
-            "lastMessage"   to content,
-            "lastTimestamp" to ts
-        ))
+        val myData = mapOf("peerId" to otherUserId, "peerName" to peerName, "peerEmail" to peerEmail, "lastMessage" to content, "lastTimestamp" to ts)
+        val peerData = mapOf("peerId" to myId, "peerName" to myNameDb, "peerEmail" to myEmail, "lastMessage" to content, "lastTimestamp" to ts)
+
+        db.getReference(node).child(myId).child(otherUserId).setValue(myData)
+        db.getReference(node).child(otherUserId).child(myId).setValue(peerData)
     }
 
-    // ─── Mappings ──────────────────────────────────────────────────────────────────
-    private fun MessageEntity.toDomain() = Message(
-        id         = id,
-        senderId   = senderId,
-        senderName = senderName,
-        content    = content,
-        timestamp  = timestamp,
-        isMine     = isMine
-    )
-
+    private fun MessageEntity.toDomain() = Message(id = id, senderId = senderId, senderName = senderName, content = content, timestamp = timestamp, isMine = isMine)
     private fun chatId(a: String, b: String) = if (a < b) "${a}_$b" else "${b}_$a"
 }

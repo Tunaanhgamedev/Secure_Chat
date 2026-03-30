@@ -86,7 +86,9 @@ dependencies {
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.database)
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.storage)
     implementation(libs.webrtc)
+    implementation(libs.coil.compose)
 
     implementation("androidx.compose.material:material-icons-extended")
 }
