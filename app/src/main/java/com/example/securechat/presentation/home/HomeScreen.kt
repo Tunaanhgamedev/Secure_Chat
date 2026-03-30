@@ -291,7 +291,7 @@ fun ConversationsTab(conversations: List<Conversation>, onClick: (String, String
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AvatarCircle(name = convo.peerName, url = null, size = 56, isOnline = convo.isOnline)
+                AvatarCircle(name = convo.peerName, url = convo.peerPhotoUrl, size = 56, isOnline = convo.isOnline)
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = convo.peerName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)

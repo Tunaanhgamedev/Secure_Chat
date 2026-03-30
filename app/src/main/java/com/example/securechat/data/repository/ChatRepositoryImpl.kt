@@ -71,11 +71,12 @@ class ChatRepositoryImpl @Inject constructor(
                     val conversations = snapshot.children.mapNotNull { child ->
                         val peerId = child.child("peerId").getValue(String::class.java) ?: return@mapNotNull null
                         
-                        // Fetch presence for peer
+                        // Fetch presence and photo for peer
                         val peerSnap = db.getReference("users").child(peerId).get().await()
                         val isOnline = peerSnap.child("isOnline").getValue(Boolean::class.java) ?: false
                         val lastSeen = peerSnap.child("lastSeen").getValue(Long::class.java) ?: 0L
                         val isHidden = peerSnap.child("isPresenceHidden").getValue(Boolean::class.java) ?: false
+                        val photoUrl = peerSnap.child("photoUrl").getValue(String::class.java)
 
                         Conversation(
                             peerId       = peerId,
@@ -84,7 +85,8 @@ class ChatRepositoryImpl @Inject constructor(
                             lastMessage  = child.child("lastMessage").getValue(String::class.java) ?: "",
                             lastTimestamp = child.child("lastTimestamp").getValue(Long::class.java) ?: 0L,
                             isOnline     = if (isHidden) false else isOnline,
-                            lastSeen     = lastSeen
+                            lastSeen     = lastSeen,
+                            peerPhotoUrl = photoUrl
                         )
                     }.sortedByDescending { it.lastTimestamp }
                     trySend(conversations)

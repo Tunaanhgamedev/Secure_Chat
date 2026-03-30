@@ -5,5 +5,8 @@ data class Conversation(
     val peerName: String,
     val peerEmail: String,
     val lastMessage: String,
-    val lastTimestamp: Long
+    val lastTimestamp: Long,
+    val isOnline: Boolean = false,
+    val lastSeen: Long = 0L,
+    val peerPhotoUrl: String? = null
 )
