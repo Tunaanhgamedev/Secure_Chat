@@ -46,7 +46,7 @@ fun ChatScreen(
 ) {
     val messages: List<Message> = viewModel.messages.collectAsState(initial = emptyList()).value
     val isFriend: Boolean = viewModel.isFriend.collectAsState(initial = false).value
-    val peerUser: com.example.securechat.domain.model.User? = viewModel.peerUser.collectAsState(initial = null).value
+    val peerUser: User? = viewModel.peerUser.collectAsState().value
     val inputTextState = remember { mutableStateOf<String>("") }
     val inputText = inputTextState.value
     val listState = rememberLazyListState()

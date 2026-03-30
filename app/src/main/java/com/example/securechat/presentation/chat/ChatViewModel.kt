@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.securechat.domain.model.Message
+import com.example.securechat.domain.model.User
 import com.example.securechat.domain.repository.ChatRepository
 import com.example.securechat.domain.usecase.GetMessagesUseCase
 import com.example.securechat.domain.usecase.SendMessageUseCase
