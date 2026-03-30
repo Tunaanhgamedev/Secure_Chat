@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.securechat.domain.model.Message
+import com.example.securechat.domain.model.User
 import com.example.securechat.presentation.home.AvatarCircle
 import kotlinx.coroutines.launch
 
@@ -43,10 +44,10 @@ fun ChatScreen(
     onNavigateBack: () -> Unit,
     onNavigateToCall: () -> Unit
 ) {
-    val messages by viewModel.messages.collectAsState()
-    val isFriend by viewModel.isFriend.collectAsState()
-    val peerUser by viewModel.peerUser.collectAsState()
-    var inputText by remember { mutableStateOf("") }
+    val messages = viewModel.messages.collectAsState().value
+    val isFriend = viewModel.isFriend.collectAsState().value
+    val peerUser = viewModel.peerUser.collectAsState().value
+    val (inputText, setInputText) = remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
@@ -113,7 +114,7 @@ fun ChatScreen(
             ) {
                 OutlinedTextField(
                     value = inputText,
-                    onValueChange = { inputText = it },
+                    onValueChange = { setInputText(it) },
                     placeholder = { Text("Nhắn tin…", color = SecondaryText) },
                     singleLine = true,
                     shape = RoundedCornerShape(24.dp),
@@ -133,7 +134,7 @@ fun ChatScreen(
                     onClick = {
                         if (inputText.isNotBlank()) {
                             viewModel.sendMessage(inputText)
-                            inputText = ""
+                            setInputText("")
                             coroutineScope.launch { if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1) }
                         }
                     },
