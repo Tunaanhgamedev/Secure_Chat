@@ -9,7 +9,7 @@ class LoginUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(email: String, password: String): Result<User> {
         if (email.isBlank() || password.isBlank()) {
-            return Result.failure(Exception("Email and password cannot be empty."))
+            return Result.failure(Exception("Email và mật khẩu không được để trống."))
         }
         return repository.login(email, password)
     }
