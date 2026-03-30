@@ -23,8 +23,13 @@ class UserListViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            chatRepository.getUsers().collectLatest { userList ->
-                _users.value = userList
+            try {
+                chatRepository.getUsers().collectLatest { userList ->
+                    _users.value = userList
+                }
+            } catch (e: Exception) {
+                // Ignore or handle permission denied errors gracefully
+                e.printStackTrace()
             }
         }
     }

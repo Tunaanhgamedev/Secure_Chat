@@ -26,8 +26,12 @@ class ChatViewModel @Inject constructor(
     init {
         otherUserId?.let { id ->
             viewModelScope.launch {
-                chatRepository.getMessages(id).collectLatest { msgs ->
-                    _messages.value = msgs
+                try {
+                    chatRepository.getMessages(id).collectLatest { msgs ->
+                        _messages.value = msgs
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }

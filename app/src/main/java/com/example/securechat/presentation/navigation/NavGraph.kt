@@ -11,11 +11,13 @@ import com.example.securechat.presentation.register.RegisterScreen
 import com.example.securechat.presentation.home.UserListScreen
 import com.google.firebase.auth.FirebaseAuth
 
+import androidx.compose.runtime.remember
+
 @Composable
 fun SecureChatNavGraph() {
     val navController = rememberNavController()
     val auth = FirebaseAuth.getInstance()
-    val startDestination = if (auth.currentUser != null) "home" else "login"
+    val startDestination = remember { if (auth.currentUser != null) "home" else "login" }
 
     NavHost(navController = navController, startDestination = startDestination) {
         composable("login") {
