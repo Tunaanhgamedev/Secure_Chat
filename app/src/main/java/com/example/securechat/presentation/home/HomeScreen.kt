@@ -293,7 +293,7 @@ fun FindFriendsTab(users: List<User>, onUserClick: (User) -> Unit) {
     if (users.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.PersonSearch, contentDescription = null, size = 64.dp, tint = SecondaryText)
+                Icon(Icons.Default.PersonSearch, contentDescription = null, modifier = Modifier.size(64.dp), tint = SecondaryText)
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Không tìm thấy người dùng nào.", color = SecondaryText)
             }
