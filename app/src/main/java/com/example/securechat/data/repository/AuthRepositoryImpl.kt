@@ -46,10 +46,16 @@ class AuthRepositoryImpl @Inject constructor(
                 cachedUser.value = user
                 Result.success(user)
             } else {
-                Result.failure(Exception("Unknown authentication error"))
+                Result.failure(Exception("Lỗi xác thực không xác định"))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            val message = when (e) {
+                is com.google.firebase.auth.FirebaseAuthInvalidUserException -> "Tài khoản không tồn tại hoặc đã bị vô hiệu hóa."
+                is com.google.firebase.auth.FirebaseAuthInvalidCredentialsException -> "Email hoặc mật khẩu không chính xác."
+                is com.google.firebase.FirebaseNetworkException -> "Lỗi kết nối mạng, vui lòng kiểm tra lại."
+                else -> e.message ?: "Đã xảy ra lỗi khi đăng nhập."
+            }
+            Result.failure(Exception(message))
         }
     }
 
@@ -78,10 +84,16 @@ class AuthRepositoryImpl @Inject constructor(
                 cachedUser.value = user
                 Result.success(user)
             } else {
-                Result.failure(Exception("Unknown authentication error"))
+                Result.failure(Exception("Lỗi đăng ký không xác định"))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            val message = when (e) {
+                is com.google.firebase.auth.FirebaseAuthUserCollisionException -> "Email này đã được sử dụng bởi một tài khoản khác."
+                is com.google.firebase.auth.FirebaseAuthInvalidCredentialsException -> "Định dạng email không hợp lệ."
+                is com.google.firebase.FirebaseNetworkException -> "Lỗi kết nối mạng, vui lòng kiểm tra lại."
+                else -> e.message ?: "Đã xảy ra lỗi khi đăng ký."
+            }
+            Result.failure(Exception(message))
         }
     }
 
