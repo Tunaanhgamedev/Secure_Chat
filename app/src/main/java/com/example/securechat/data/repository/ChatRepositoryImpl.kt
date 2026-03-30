@@ -46,7 +46,9 @@ class ChatRepositoryImpl @Inject constructor(
                 }
                 trySend(users)
             }
-            override fun onCancelled(error: DatabaseError) = close(error.toException())
+            override fun onCancelled(error: DatabaseError) {
+                close(error.toException())
+            }
         }
         val ref = db.getReference("users")
         ref.addValueEventListener(listener)
@@ -70,7 +72,9 @@ class ChatRepositoryImpl @Inject constructor(
                 }.sortedByDescending { it.lastTimestamp }
                 trySend(conversations)
             }
-            override fun onCancelled(error: DatabaseError) = close(error.toException())
+            override fun onCancelled(error: DatabaseError) {
+                close(error.toException())
+            }
         }
         val ref = db.getReference("conversations").child(myUid)
         ref.addValueEventListener(listener)
