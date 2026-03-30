@@ -47,7 +47,8 @@ fun ChatScreen(
     val messages = viewModel.messages.collectAsState().value
     val isFriend = viewModel.isFriend.collectAsState().value
     val peerUser = viewModel.peerUser.collectAsState().value
-    val (inputText, setInputText) = remember { mutableStateOf("") }
+    val inputTextState = remember { mutableStateOf("") }
+    val inputText = inputTextState.value
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
@@ -113,8 +114,8 @@ fun ChatScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(
-                    value = inputText,
-                    onValueChange = { setInputText(it) },
+                    value = inputTextState.value,
+                    onValueChange = { inputTextState.value = it },
                     placeholder = { Text("Nhắn tin…", color = SecondaryText) },
                     singleLine = true,
                     shape = RoundedCornerShape(24.dp),
@@ -132,9 +133,9 @@ fun ChatScreen(
                 Spacer(Modifier.width(8.dp))
                 IconButton(
                     onClick = {
-                        if (inputText.isNotBlank()) {
-                            viewModel.sendMessage(inputText)
-                            setInputText("")
+                        if (inputTextState.value.isNotBlank()) {
+                            viewModel.sendMessage(inputTextState.value)
+                            inputTextState.value = ""
                             coroutineScope.launch { if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1) }
                         }
                     },
