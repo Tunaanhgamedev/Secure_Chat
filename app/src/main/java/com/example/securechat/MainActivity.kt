@@ -33,18 +33,22 @@ class MainActivity : ComponentActivity() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(LifecycleEventObserver { _, event ->
             val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
             if (currentUser != null) {
-                when (event) {
-                    Lifecycle.Event.ON_START -> {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            authRepository.updatePresence(isOnline = true)
+                try {
+                    when (event) {
+                        Lifecycle.Event.ON_START -> {
+                            CoroutineScope(Dispatchers.IO).launch {
+                                authRepository.updatePresence(isOnline = true)
+                            }
                         }
-                    }
-                    Lifecycle.Event.ON_STOP -> {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            authRepository.updatePresence(isOnline = false)
+                        Lifecycle.Event.ON_STOP -> {
+                            CoroutineScope(Dispatchers.IO).launch {
+                                authRepository.updatePresence(isOnline = false)
+                            }
                         }
+                        else -> {}
                     }
-                    else -> {}
+                } catch (e: Exception) {
+                    // Fail silently to prevent app crash
                 }
             }
         })

@@ -96,7 +96,12 @@ fun HomeScreen(
                         IconButton(onClick = onGroupChatClick) {
                             Icon(Icons.Default.Groups, contentDescription = "Groups", tint = Color.White)
                         }
-                        IconButton(onClick = { viewModel.logout(); onLogout() }) {
+                        IconButton(onClick = { 
+                            scope.launch {
+                                viewModel.logout()
+                                onLogout()
+                            }
+                        }) {
                             Icon(Icons.Default.Logout, contentDescription = "Logout", tint = Color.White)
                         }
                     },

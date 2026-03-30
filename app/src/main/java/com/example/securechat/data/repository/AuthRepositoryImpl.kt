@@ -160,19 +160,28 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun logout() {
         val uid = firebaseAuth.currentUser?.uid
         
-        // Remove listener immediately
+        // 1. Remove listener immediately from the database to stop updates
         currentPeerId?.let { peerId ->
             currentUserListener?.let { usersRef.child(peerId).removeEventListener(it) }
         }
         currentPeerId = null
         currentUserListener = null
 
-        if (uid != null) {
-            usersRef.child(uid).child("isOnline").setValue(false)
-            usersRef.child(uid).child("lastSeen").setValue(ServerValue.TIMESTAMP).await()
-        }
-        firebaseAuth.signOut()
+        // 2. Clear cached user state so UI reflects logout immediately
         cachedUser.value = null
+
+        // 3. Try to mark user as offline on Firebase, but don't let failures block signOut
+        if (uid != null) {
+            try {
+                usersRef.child(uid).child("isOnline").setValue(false)
+                usersRef.child(uid).child("lastSeen").setValue(ServerValue.TIMESTAMP).await()
+            } catch (e: Exception) {
+                // If network fails, we still want to proceed to signOut
+            }
+        }
+
+        // 4. Definitive sign out from Firebase Auth
+        firebaseAuth.signOut()
     }
 
     // ─── Pro Features ─────────────────────────────────────────────────────────────

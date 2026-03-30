@@ -69,5 +69,7 @@ class HomeViewModel @Inject constructor(
     fun rejectFriend(userId: String) = viewModelScope.launch { chatRepository.rejectFriendRequest(userId) }
     fun sendFriendRequest(userId: String) = viewModelScope.launch { chatRepository.sendFriendRequest(userId) }
 
-    fun logout() = viewModelScope.launch { authRepository.logout() }
+    suspend fun logout() {
+        authRepository.logout()
+    }
 }
