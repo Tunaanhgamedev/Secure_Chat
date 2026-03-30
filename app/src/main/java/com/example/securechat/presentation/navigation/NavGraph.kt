@@ -70,20 +70,34 @@ fun SecureChatNavGraph() {
             )
         ) { backStackEntry ->
             val viewModel: ChatViewModel = hiltViewModel(backStackEntry)
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            val peerName = backStackEntry.arguments?.getString("peerName") ?: ""
+
             ChatScreen(
                 viewModel        = viewModel,
-                peerName         = viewModel.peerName,
+                peerName         = peerName,
                 onNavigateBack   = { navController.popBackStack() },
-                onNavigateToCall = { navController.navigate("call") }
+                onNavigateToCall = { 
+                    navController.navigate("call/$userId?peerName=$peerName&isIncoming=false") 
+                }
+            )
+        }
+
+        composable(
+            route = "call/{userId}?peerName={peerName}&isIncoming={isIncoming}",
+            arguments = listOf(
+                navArgument("userId")     { type = NavType.StringType },
+                navArgument("peerName")   { type = NavType.StringType; defaultValue = "" },
+                navArgument("isIncoming") { type = NavType.BoolType; defaultValue = false }
+            )
+        ) {
+            VideoCallScreen(
+                onEndCall = { navController.popBackStack() }
             )
         }
 
         composable("group_chat") {
             GroupChatScreen(onNavigateBack = { navController.popBackStack() })
-        }
-
-        composable("call") {
-            VideoCallScreen(onEndCall = { navController.popBackStack() })
         }
     }
 }
