@@ -37,9 +37,12 @@ fun ChatScreen(
 ) {
     val messages by viewModel.messages.collectAsState()
     val isFriend by viewModel.isFriend.collectAsState()
+    val peerUser by viewModel.peerUser.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+
+    val isPeerActuallyOnline = if (peerUser?.isPresenceHidden == true) false else (peerUser?.isOnline ?: false)
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
@@ -51,11 +54,15 @@ fun ChatScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        AvatarCircle(name = peerName, size = 36)
+                        AvatarCircle(name = peerName, url = peerUser?.photoUrl, size = 36, isOnline = isPeerActuallyOnline)
                         Spacer(Modifier.width(10.dp))
                         Column {
+                            val statusText = if (isPeerActuallyOnline) "Đang hoạt động"
+                            else if (peerUser?.lastSeen != null && peerUser?.lastSeen!! > 0L) "Hoạt động ${com.example.securechat.util.TimeUtils.getRelativeTime(peerUser?.lastSeen!!)}"
+                            else "Ngoại tuyến"
+
                             Text(peerName, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp)
-                            Text(if (isFriend) "Đang hoạt động" else "Người lạ", color = if (isFriend) Color(0xFF30D158) else SecondaryText, fontSize = 11.sp)
+                            Text(statusText, color = if (isPeerActuallyOnline) Color(0xFF30D158) else SecondaryText, fontSize = 11.sp)
                         }
                     }
                 },

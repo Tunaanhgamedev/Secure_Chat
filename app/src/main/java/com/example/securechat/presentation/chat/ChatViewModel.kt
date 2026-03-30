@@ -29,6 +29,9 @@ class ChatViewModel @Inject constructor(
     private val _isFriend = MutableStateFlow(true)
     val isFriend: StateFlow<Boolean> = _isFriend
 
+    private val _peerUser = MutableStateFlow<User?>(null)
+    val peerUser: StateFlow<User?> = _peerUser
+
     init {
         otherUserId?.let { id ->
             viewModelScope.launch {
@@ -36,6 +39,11 @@ class ChatViewModel @Inject constructor(
             }
             viewModelScope.launch {
                 chatRepository.isFriend(id).collectLatest { _isFriend.value = it }
+            }
+            viewModelScope.launch {
+                chatRepository.getUsers().collectLatest { users ->
+                    _peerUser.value = users.find { it.id == id }
+                }
             }
         }
     }

@@ -16,4 +16,5 @@ interface AuthRepository {
     suspend fun updateEmail(newEmail: String): Result<Unit>
     suspend fun updatePassword(newPassword: String): Result<Unit>
     suspend fun uploadAvatar(uri: Uri): Result<String>
+    suspend fun updatePresence(isOnline: Boolean, isHidden: Boolean? = null): Result<Unit>
 }

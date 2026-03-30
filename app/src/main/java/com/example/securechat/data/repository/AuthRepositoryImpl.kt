@@ -6,10 +6,16 @@ import com.example.securechat.domain.repository.AuthRepository
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ServerValue
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,13 +33,21 @@ class AuthRepositoryImpl @Inject constructor(
         firebaseAuth.addAuthStateListener { auth ->
             val currentUser = auth.currentUser
             if (currentUser != null) {
-                cachedUser.value = User(
-                    id = currentUser.uid,
-                    username = currentUser.displayName ?: "",
-                    email = currentUser.email ?: "",
-                    photoUrl = currentUser.photoUrl?.toString(),
-                    token = null
-                )
+                // Listen to database changes for extra fields (isOnline, lastSeen, photoUrl, etc.)
+                usersRef.child(currentUser.uid).addValueEventListener(object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        cachedUser.value = User(
+                            id = currentUser.uid,
+                            username = snapshot.child("username").getValue(String::class.java) ?: currentUser.displayName ?: "",
+                            email = snapshot.child("email").getValue(String::class.java) ?: currentUser.email ?: "",
+                            photoUrl = snapshot.child("photoUrl").getValue(String::class.java),
+                            isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false,
+                            lastSeen = snapshot.child("lastSeen").getValue(Long::class.java) ?: 0L,
+                            isPresenceHidden = snapshot.child("isPresenceHidden").getValue(Boolean::class.java) ?: false
+                        )
+                    }
+                    override fun onCancelled(error: DatabaseError) {}
+                })
             } else {
                 cachedUser.value = null
             }
@@ -45,15 +59,18 @@ class AuthRepositoryImpl @Inject constructor(
             val authResult = firebaseAuth.signInWithEmailAndPassword(email, password).await()
             val firebaseUser = authResult.user
             if (firebaseUser != null) {
-                // Ensure record exists on login (syncing logic)
-                syncToUsersNode(firebaseUser.uid, firebaseUser.displayName ?: "", firebaseUser.email ?: "", firebaseUser.photoUrl?.toString())
+                val userSnap = usersRef.child(firebaseUser.uid).get().await()
+                val isHidden = userSnap.child("isPresenceHidden").getValue(Boolean::class.java) ?: false
+                
+                syncToUsersNode(firebaseUser.uid, firebaseUser.displayName ?: "", firebaseUser.email ?: "", firebaseUser.photoUrl?.toString(), isHidden)
+                setupPresence(firebaseUser.uid, isHidden)
 
                 val user = User(
                     id = firebaseUser.uid,
                     username = firebaseUser.displayName ?: "",
                     email = firebaseUser.email ?: "",
                     photoUrl = firebaseUser.photoUrl?.toString(),
-                    token = null
+                    isPresenceHidden = isHidden
                 )
                 cachedUser.value = user
                 Result.success(user)
@@ -75,15 +92,10 @@ class AuthRepositoryImpl @Inject constructor(
                 }
                 firebaseUser.updateProfile(profileUpdates).await()
 
-                syncToUsersNode(firebaseUser.uid, username, email, null)
+                syncToUsersNode(firebaseUser.uid, username, email, null, false)
+                setupPresence(firebaseUser.uid, false)
 
-                val user = User(
-                    id = firebaseUser.uid,
-                    username = username,
-                    email = email,
-                    photoUrl = null,
-                    token = null
-                )
+                val user = User(id = firebaseUser.uid, username = username, email = email)
                 cachedUser.value = user
                 Result.success(user)
             } else {
@@ -94,22 +106,60 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun syncToUsersNode(uid: String, username: String, email: String, photoUrl: String?) {
+    private suspend fun syncToUsersNode(uid: String, username: String, email: String, photoUrl: String?, isHidden: Boolean) {
         usersRef.child(uid).updateChildren(mapOf(
             "username" to username,
             "email" to email,
-            "photoUrl" to photoUrl
+            "photoUrl" to photoUrl,
+            "isPresenceHidden" to isHidden
         )).await()
+    }
+
+    private fun setupPresence(uid: String, isHidden: Boolean) {
+        if (isHidden) return
+        val userStatusRef = usersRef.child(uid)
+        
+        // OnDisconnect: Set online to false and lastSeen to current server time
+        userStatusRef.child("isOnline").onDisconnect().setValue(false)
+        userStatusRef.child("lastSeen").onDisconnect().setValue(ServerValue.TIMESTAMP)
+        
+        // Mark as online
+        userStatusRef.child("isOnline").setValue(true)
+    }
+
+    override suspend fun updatePresence(isOnline: Boolean, isHidden: Boolean?): Result<Unit> = try {
+        val uid = firebaseAuth.currentUser?.uid ?: throw Exception("Chưa đăng nhập")
+        val updates = mutableMapOf<String, Any>("isOnline" to isOnline)
+        if (isOnline) updates["lastSeen"] = System.currentTimeMillis()
+        isHidden?.let { 
+            updates["isPresenceHidden"] = it
+            if (it) {
+                updates["isOnline"] = false
+                usersRef.child(uid).child("isOnline").onDisconnect().cancel()
+                usersRef.child(uid).child("lastSeen").onDisconnect().cancel()
+            } else {
+                setupPresence(uid, false)
+            }
+        }
+        usersRef.child(uid).updateChildren(updates).await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 
     override fun getCachedUser(): Flow<User?> = cachedUser
 
     override suspend fun logout() {
+        val uid = firebaseAuth.currentUser?.uid
+        if (uid != null) {
+            usersRef.child(uid).child("isOnline").setValue(false)
+            usersRef.child(uid).child("lastSeen").setValue(ServerValue.TIMESTAMP)
+        }
         firebaseAuth.signOut()
         cachedUser.value = null
     }
 
-    // ─── Pro Features (Re-auth, Updates) ───────────────────────────────────────────
+    // ─── Pro Features ─────────────────────────────────────────────────────────────
     override suspend fun reauthenticate(password: String): Result<Unit> = try {
         val user = firebaseAuth.currentUser ?: throw Exception("Chưa đăng nhập")
         val credential = EmailAuthProvider.getCredential(user.email!!, password)
@@ -126,7 +176,8 @@ class AuthRepositoryImpl @Inject constructor(
             photoUrl?.let { photoUri = Uri.parse(it) }
         }
         user.updateProfile(profileUpdates).await()
-        syncToUsersNode(user.uid, username, user.email!!, photoUrl)
+        val isHidden = cachedUser.value?.isPresenceHidden ?: false
+        syncToUsersNode(user.uid, username, user.email!!, photoUrl, isHidden)
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)
@@ -135,7 +186,8 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun updateEmail(newEmail: String): Result<Unit> = try {
         val user = firebaseAuth.currentUser ?: throw Exception("Chưa đăng nhập")
         user.updateEmail(newEmail).await()
-        syncToUsersNode(user.uid, user.displayName ?: "", newEmail, user.photoUrl?.toString())
+        val isHidden = cachedUser.value?.isPresenceHidden ?: false
+        syncToUsersNode(user.uid, user.displayName ?: "", newEmail, user.photoUrl?.toString(), isHidden)
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(translateAuthError(e))
@@ -152,7 +204,7 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun uploadAvatar(uri: Uri): Result<String> = try {
         val user = firebaseAuth.currentUser ?: throw Exception("Chưa đăng nhập")
         val fileRef = storage.child("${user.uid}.jpg")
-        val uploadTask = fileRef.putFile(uri).await()
+        fileRef.putFile(uri).await()
         val downloadUrl = fileRef.downloadUrl.await().toString()
         Result.success(downloadUrl)
     } catch (e: Exception) {

@@ -244,24 +244,38 @@ fun SearchBar(query: String, onValueChange: (String) -> Unit) {
 }
 
 @Composable
-fun AvatarCircle(name: String, url: String? = null, size: Int = 40) {
-    if (!url.isNullOrBlank()) {
-        AsyncImage(
-            model      = url,
-            contentDescription = null,
-            modifier = Modifier.size(size.dp).clip(CircleShape).background(SurfaceVariant),
-            contentScale = ContentScale.Crop
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .size(size.dp)
-                .clip(CircleShape)
-                .background(MessengerBlue),
-            contentAlignment = Alignment.Center
-        ) {
-            val initial = name.firstOrNull()?.uppercase() ?: "?"
-            Text(text = initial, color = Color.White, fontSize = (size / 2).sp, fontWeight = FontWeight.Bold)
+fun AvatarCircle(name: String, url: String? = null, size: Int = 40, isOnline: Boolean = false) {
+    Box(contentAlignment = Alignment.BottomEnd) {
+        if (!url.isNullOrBlank()) {
+            AsyncImage(
+                model      = url,
+                contentDescription = null,
+                modifier = Modifier.size(size.dp).clip(CircleShape).background(SurfaceVariant),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(size.dp)
+                    .clip(CircleShape)
+                    .background(MessengerBlue),
+                contentAlignment = Alignment.Center
+            ) {
+                val initial = name.firstOrNull()?.uppercase() ?: "?"
+                Text(text = initial, color = Color.White, fontSize = (size / 2).sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        
+        if (isOnline) {
+            Box(
+                modifier = Modifier
+                    .size((size / 4).dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF30D158))
+                    .padding(2.dp)
+            ) {
+                Box(modifier = Modifier.fillMaxSize().clip(CircleShape).background(Color(0xFF30D158)))
+            }
         }
     }
 }
@@ -269,19 +283,19 @@ fun AvatarCircle(name: String, url: String? = null, size: Int = 40) {
 @Composable
 fun ConversationsTab(conversations: List<Conversation>, onClick: (String, String) -> Unit) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(conversations) { convo ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onClick(convo.peerId, convo.peerName) }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AvatarCircle(name = convo.peerName, size = 56)
+                AvatarCircle(name = convo.peerName, url = null, size = 56, isOnline = convo.isOnline)
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = convo.peerName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    Text(text = convo.lastMessage, color = SecondaryText, maxLines = 1, fontSize = 14.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (convo.isOnline) "Đang hoạt động" else com.example.securechat.util.TimeUtils.getRelativeTime(convo.lastSeen),
+                            color = if (convo.isOnline) Color(0xFF30D158) else SecondaryText,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text(text = "• ${convo.lastMessage}", color = SecondaryText, maxLines = 1, fontSize = 12.sp)
+                    }
                 }
             }
         }
@@ -305,11 +319,16 @@ fun FindFriendsTab(users: List<User>, onUserClick: (User) -> Unit) {
                     modifier = Modifier.fillMaxWidth().clickable { onUserClick(user) }.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AvatarCircle(name = user.username, url = user.photoUrl, size = 56)
+                    val isActuallyOnline = if (user.isPresenceHidden) false else user.isOnline
+                    AvatarCircle(name = user.username, url = user.photoUrl, size = 56, isOnline = isActuallyOnline)
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = user.username, color = Color.White, fontWeight = FontWeight.SemiBold)
-                        Text(text = user.email, color = SecondaryText, fontSize = 12.sp)
+                        Text(
+                            text = if (isActuallyOnline) "Đang hoạt động" else "Hoạt động ${com.example.securechat.util.TimeUtils.getRelativeTime(user.lastSeen)}",
+                            color = if (isActuallyOnline) Color(0xFF30D158) else SecondaryText, 
+                            fontSize = 12.sp
+                        )
                     }
                     Button(
                         onClick = { onUserClick(user) },

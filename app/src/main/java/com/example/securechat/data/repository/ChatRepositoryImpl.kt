@@ -42,7 +42,10 @@ class ChatRepositoryImpl @Inject constructor(
                         id = uid,
                         username = child.child("username").getValue(String::class.java) ?: "",
                         email = child.child("email").getValue(String::class.java) ?: "",
-                        photoUrl = child.child("photoUrl").getValue(String::class.java)
+                        photoUrl = child.child("photoUrl").getValue(String::class.java),
+                        isOnline = child.child("isOnline").getValue(Boolean::class.java) ?: false,
+                        lastSeen = child.child("lastSeen").getValue(Long::class.java) ?: 0L,
+                        isPresenceHidden = child.child("isPresenceHidden").getValue(Boolean::class.java) ?: false
                     )
                 }
                 trySend(users)
@@ -64,16 +67,28 @@ class ChatRepositoryImpl @Inject constructor(
         val myUid = auth.currentUser?.uid ?: run { trySend(emptyList()); close(); return@callbackFlow }
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val conversations = snapshot.children.mapNotNull { child ->
-                    Conversation(
-                        peerId       = child.child("peerId").getValue(String::class.java) ?: return@mapNotNull null,
-                        peerName     = child.child("peerName").getValue(String::class.java) ?: "",
-                        peerEmail    = child.child("peerEmail").getValue(String::class.java) ?: "",
-                        lastMessage  = child.child("lastMessage").getValue(String::class.java) ?: "",
-                        lastTimestamp = child.child("lastTimestamp").getValue(Long::class.java) ?: 0L
-                    )
-                }.sortedByDescending { it.lastTimestamp }
-                trySend(conversations)
+                launch {
+                    val conversations = snapshot.children.mapNotNull { child ->
+                        val peerId = child.child("peerId").getValue(String::class.java) ?: return@mapNotNull null
+                        
+                        // Fetch presence for peer
+                        val peerSnap = db.getReference("users").child(peerId).get().await()
+                        val isOnline = peerSnap.child("isOnline").getValue(Boolean::class.java) ?: false
+                        val lastSeen = peerSnap.child("lastSeen").getValue(Long::class.java) ?: 0L
+                        val isHidden = peerSnap.child("isPresenceHidden").getValue(Boolean::class.java) ?: false
+
+                        Conversation(
+                            peerId       = peerId,
+                            peerName     = child.child("peerName").getValue(String::class.java) ?: "",
+                            peerEmail    = child.child("peerEmail").getValue(String::class.java) ?: "",
+                            lastMessage  = child.child("lastMessage").getValue(String::class.java) ?: "",
+                            lastTimestamp = child.child("lastTimestamp").getValue(Long::class.java) ?: 0L,
+                            isOnline     = if (isHidden) false else isOnline,
+                            lastSeen     = lastSeen
+                        )
+                    }.sortedByDescending { it.lastTimestamp }
+                    trySend(conversations)
+                }
             }
             override fun onCancelled(error: DatabaseError) { close(error.toException()) }
         }

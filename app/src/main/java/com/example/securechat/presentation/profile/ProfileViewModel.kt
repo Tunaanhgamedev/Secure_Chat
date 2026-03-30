@@ -64,6 +64,10 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    fun updatePresence(isOnline: Boolean, isHidden: Boolean? = null) = viewModelScope.launch {
+        authRepository.updatePresence(isOnline, isHidden)
+    }
+
     fun updatePassword(newPassword: String) = viewModelScope.launch {
         _uiState.update { it.copy(isLoading = true, error = null, successMessage = null) }
         val result = authRepository.updatePassword(newPassword)

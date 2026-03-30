@@ -8,14 +8,44 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
-import com.example.securechat.ui.theme.SecureChatTheme
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
+import com.example.securechat.domain.repository.AuthRepository
 import com.example.securechat.presentation.navigation.SecureChatNavGraph
+import com.example.securechat.ui.theme.SecureChatTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var authRepository: AuthRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Track App Lifecycle for Presence
+        ProcessLifecycleOwner.get().lifecycle.addObserver(LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        authRepository.updatePresence(isOnline = true)
+                    }
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        authRepository.updatePresence(isOnline = false)
+                    }
+                }
+                else -> {}
+            }
+        })
+
         enableEdgeToEdge()
         setContent {
             SecureChatTheme {

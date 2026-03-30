@@ -103,6 +103,32 @@ fun ProfileScreen(
                 visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
             )
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Incognito Mode Switch
+            Surface(
+                color = SurfaceVariant,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Trạng thái hoạt động", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Cho người khác biết khi bạn đang online.", color = Color(0xFF8E8E93), fontSize = 12.sp)
+                    }
+                    Switch(
+                        checked = !(uiState.user?.isPresenceHidden ?: false),
+                        onCheckedChange = { isVisible ->
+                            viewModel.updatePresence(isOnline = isVisible, isHidden = !isVisible)
+                        },
+                        colors = SwitchDefaults.colors(checkedThumbColor = MessengerBlue, checkedTrackColor = MessengerBlue.copy(alpha = 0.5f))
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
