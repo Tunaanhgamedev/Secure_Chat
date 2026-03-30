@@ -283,6 +283,14 @@ fun AvatarCircle(name: String, url: String? = null, size: Int = 40, isOnline: Bo
 @Composable
 fun ConversationsTab(conversations: List<Conversation>, onClick: (String, String) -> Unit) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
+        items(conversations) { convo ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onClick(convo.peerId, convo.peerName) }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 AvatarCircle(name = convo.peerName, url = null, size = 56, isOnline = convo.isOnline)
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
