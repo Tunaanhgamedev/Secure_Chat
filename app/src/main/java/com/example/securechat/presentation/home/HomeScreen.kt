@@ -173,20 +173,10 @@ fun DrawerContent(
         
         HorizontalDivider(color = SurfaceVariant, modifier = Modifier.padding(vertical = 16.dp))
 
-        DrawerItem(Icons.Default.Group, "Cộng đồng", badge = "Mới")
         DrawerItem(Icons.Default.Forum, "Tin nhắn đang chờ", count = messageRequestCount, onClick = { /* Pending chat tab */ })
-        DrawerItem(Icons.Default.Archive, "Kho lưu trữ")
-
-        HorizontalDivider(color = SurfaceVariant, modifier = Modifier.padding(vertical = 16.dp))
-        
         DrawerItem(Icons.Default.PersonAdd, "Lời mời kết bạn", count = friendRequestCount, onClick = { onTabSelect(HomeTab.REQUESTS) })
-        DrawerItem(Icons.Default.Checklist, "Lời mời tham gia kênh", hasDot = true)
 
         Spacer(modifier = Modifier.weight(1f))
-        
-        Text("Cũng của Meta", color = SecondaryText, fontSize = 12.sp, modifier = Modifier.padding(bottom = 16.dp))
-        DrawerItem(Icons.Default.PlayCircleOutline, "Facebook Reels")
-        DrawerItem(Icons.Default.Event, "Sự kiện trên Facebook")
     }
 }
 
