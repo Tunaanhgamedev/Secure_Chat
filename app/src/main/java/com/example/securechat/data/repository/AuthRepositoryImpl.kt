@@ -123,7 +123,7 @@ class AuthRepositoryImpl @Inject constructor(
         val user = firebaseAuth.currentUser ?: throw Exception("Chưa đăng nhập")
         val profileUpdates = userProfileChangeRequest {
             displayName = username
-            photoUrl?.let { this.photoUrl = Uri.parse(it) }
+            photoUrl?.let { photoUri = Uri.parse(it) }
         }
         user.updateProfile(profileUpdates).await()
         syncToUsersNode(user.uid, username, user.email!!, photoUrl)
