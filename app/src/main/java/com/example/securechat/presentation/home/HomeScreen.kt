@@ -246,24 +246,27 @@ fun SearchBar(query: String, onValueChange: (String) -> Unit) {
 
 @Composable
 fun AvatarCircle(name: String, url: String? = null, size: Int = 40, isOnline: Boolean = false) {
-    Box(contentAlignment = Alignment.BottomEnd) {
+    Box(contentAlignment = Alignment.BottomEnd, modifier = Modifier.size(size.dp)) {
         if (!url.isNullOrBlank()) {
             AsyncImage(
-                model      = url,
+                model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                    .data(url)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = null,
-                modifier = Modifier.size(size.dp).clip(CircleShape).background(SurfaceVariant),
+                modifier = Modifier.fillMaxSize().clip(CircleShape).background(SurfaceVariant),
                 contentScale = ContentScale.Crop
             )
         } else {
             Box(
                 modifier = Modifier
-                    .size(size.dp)
+                    .fillMaxSize()
                     .clip(CircleShape)
                     .background(MessengerBlue),
                 contentAlignment = Alignment.Center
             ) {
                 val initial = name.firstOrNull()?.uppercase() ?: "?"
-                Text(text = initial, color = Color.White, fontSize = (size / 2).sp, fontWeight = FontWeight.Bold)
+                Text(text = initial, color = Color.White, fontSize = (size / 2.sp.value).sp, fontWeight = FontWeight.Bold)
             }
         }
         

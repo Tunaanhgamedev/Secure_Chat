@@ -79,7 +79,7 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun uploadAvatar(uri: Uri) = viewModelScope.launch {
-        _uiState.update { it.copy(isLoading = true, error = null) }
+        _uiState.update { it.copy(isLoading = true, error = null, successMessage = null) }
         val uploadResult = authRepository.uploadAvatar(uri)
         if (uploadResult.isSuccess) {
             val url = uploadResult.getOrThrow()

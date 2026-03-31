@@ -65,7 +65,17 @@ fun ProfileScreen(
         ) {
             // Avatar with Picker
             Box(contentAlignment = Alignment.BottomEnd, modifier = Modifier.padding(vertical = 24.dp)) {
-                AvatarCircle(name = name, url = uiState.user?.photoUrl, size = 120)
+                Box {
+                    AvatarCircle(name = name, url = uiState.user?.photoUrl, size = 120)
+                    if (uiState.isLoading) {
+                        Box(
+                            modifier = Modifier.matchParentSize().clip(CircleShape).background(Color.Black.copy(alpha = 0.4f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
+                        }
+                    }
+                }
                 IconButton(
                     onClick = { photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     modifier = Modifier.size(36.dp).clip(CircleShape).background(MessengerBlue)
