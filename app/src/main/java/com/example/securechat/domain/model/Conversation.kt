@@ -8,5 +8,7 @@ data class Conversation(
     val lastTimestamp: Long,
     val isOnline: Boolean = false,
     val lastSeen: Long = 0L,
-    val peerPhotoUrl: String? = null
+    val peerPhotoUrl: String? = null,
+    val isGroup: Boolean = false,
+    val groupId: String? = null
 )

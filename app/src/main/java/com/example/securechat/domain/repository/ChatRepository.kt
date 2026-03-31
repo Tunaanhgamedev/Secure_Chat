@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface ChatRepository {
     fun getUsers(): Flow<List<User>>
+    fun getFriends(): Flow<List<User>>
     fun getConversations(): Flow<List<Conversation>>
     fun getMessages(otherUserId: String): Flow<List<Message>>
     suspend fun sendMessage(otherUserId: String, content: String)

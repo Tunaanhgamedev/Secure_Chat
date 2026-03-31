@@ -16,7 +16,8 @@ enum class HomeTab { MESSAGES, FIND_FRIENDS, REQUESTS, MESSAGE_REQUESTS }
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val groupRepository: com.example.securechat.domain.repository.CustomGroupRepository
 ) : ViewModel() {
 
     private val _conversations = MutableStateFlow<List<Conversation>>(emptyList())
@@ -50,7 +51,12 @@ class HomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            chatRepository.getConversations().collectLatest { _conversations.value = it }
+            combine(
+                chatRepository.getConversations(),
+                groupRepository.getMyGroupConversations()
+            ) { oneOnOneChats, customGroups ->
+                (oneOnOneChats + customGroups).sortedByDescending { it.lastTimestamp }
+            }.collectLatest { _conversations.value = it }
         }
         viewModelScope.launch {
             chatRepository.getMessageRequests().collectLatest { _messageRequests.value = it }

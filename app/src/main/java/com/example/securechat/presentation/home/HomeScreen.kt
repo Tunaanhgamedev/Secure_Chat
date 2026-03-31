@@ -39,8 +39,10 @@ val SecondaryText = Color(0xFF8E8E93)
 fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
     onConversationClick: (String, String) -> Unit,
+    onCustomGroupClick: (String, String) -> Unit,
     onUserClick: (User) -> Unit,
     onGroupChatClick: () -> Unit,
+    onCreateGroupClick: () -> Unit,
     onProfileClick: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -93,6 +95,9 @@ fun HomeScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = onCreateGroupClick) {
+                            Icon(Icons.Default.GroupAdd, contentDescription = "Tạo nhóm", tint = Color.White)
+                        }
                         IconButton(onClick = onGroupChatClick) {
                             Icon(Icons.Default.Groups, contentDescription = "Groups", tint = Color.White)
                         }
@@ -135,10 +140,14 @@ fun HomeScreen(
                 }
 
                 when (selectedTab) {
-                    HomeTab.MESSAGES -> ConversationsTab(conversations, onConversationClick)
+                    HomeTab.MESSAGES -> ConversationsTab(
+                        conversations = conversations,
+                        onConversationClick = onConversationClick,
+                        onCustomGroupClick = onCustomGroupClick
+                    )
                     HomeTab.FIND_FRIENDS -> FindFriendsTab(filteredUsers, onUserClick)
                     HomeTab.REQUESTS -> FriendRequestsTab(friendRequests, viewModel::acceptFriend, viewModel::rejectFriend)
-                    HomeTab.MESSAGE_REQUESTS -> ConversationsTab(messageRequests, onConversationClick)
+                    HomeTab.MESSAGE_REQUESTS -> ConversationsTab(messageRequests, onConversationClick, onCustomGroupClick)
                 }
             }
         }
@@ -285,28 +294,44 @@ fun AvatarCircle(name: String, url: String? = null, size: Int = 40, isOnline: Bo
 }
 
 @Composable
-fun ConversationsTab(conversations: List<Conversation>, onClick: (String, String) -> Unit) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(conversations) { convo ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onClick(convo.peerId, convo.peerName) }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AvatarCircle(name = convo.peerName, url = convo.peerPhotoUrl, size = 56, isOnline = convo.isOnline)
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = convo.peerName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = if (convo.isOnline) "Đang hoạt động" else com.example.securechat.util.TimeUtils.getRelativeTime(convo.lastSeen),
-                            color = if (convo.isOnline) Color(0xFF30D158) else SecondaryText,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text(text = "• ${convo.lastMessage}", color = SecondaryText, maxLines = 1, fontSize = 12.sp)
+fun ConversationsTab(
+    conversations: List<Conversation>,
+    onConversationClick: (String, String) -> Unit,
+    onCustomGroupClick: (String, String) -> Unit
+) {
+    if (conversations.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Chưa có tin nhắn nào", color = SecondaryText, fontSize = 16.sp)
+        }
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(conversations) { convo ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { 
+                            if (convo.isGroup) {
+                                onCustomGroupClick(convo.groupId ?: convo.peerId, convo.peerName)
+                            } else {
+                                onConversationClick(convo.peerId, convo.peerName)
+                            }
+                        }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AvatarCircle(name = convo.peerName, url = convo.peerPhotoUrl, size = 56, isOnline = convo.isOnline)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = convo.peerName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = if (convo.isOnline) "Đang hoạt động" else com.example.securechat.util.TimeUtils.getRelativeTime(convo.lastSeen),
+                                color = if (convo.isOnline) Color(0xFF30D158) else SecondaryText,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text(text = "• ${convo.lastMessage}", color = SecondaryText, maxLines = 1, fontSize = 12.sp)
+                        }
                     }
                 }
             }

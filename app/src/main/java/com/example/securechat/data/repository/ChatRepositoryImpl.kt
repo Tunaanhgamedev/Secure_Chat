@@ -100,6 +100,32 @@ class ChatRepositoryImpl @Inject constructor(
     }
 
     // ─── Friend System ──────────────────────────────────────────────────────────
+    override fun getFriends(): Flow<List<User>> = callbackFlow {
+        val myUid = auth.currentUser?.uid ?: run { trySend(emptyList()); close(); return@callbackFlow }
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                launch {
+                    val friends = snapshot.children.mapNotNull { child ->
+                        val friendId = child.key ?: return@mapNotNull null
+                        val userSnap = db.getReference("users").child(friendId).get().await()
+                        User(
+                            id = friendId,
+                            username = userSnap.child("username").getValue(String::class.java) ?: "",
+                            email = userSnap.child("email").getValue(String::class.java) ?: "",
+                            photoUrl = userSnap.child("photoUrl").getValue(String::class.java)
+                        )
+                    }
+                    trySend(friends)
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        }
+        val ref = db.getReference("friends").child(myUid)
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+    
+
     override fun getFriendRequests(): Flow<List<User>> = callbackFlow {
         val myUid = auth.currentUser?.uid ?: run { trySend(emptyList()); close(); return@callbackFlow }
         val listener = object : ValueEventListener {

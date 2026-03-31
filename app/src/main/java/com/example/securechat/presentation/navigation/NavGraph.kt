@@ -51,15 +51,29 @@ fun SecureChatNavGraph() {
                 onConversationClick = { peerId, peerName ->
                     navController.navigate("chat/$peerId?peerName=$peerName")
                 },
+                onCustomGroupClick = { groupId, groupName ->
+                    navController.navigate("custom_group_chat/$groupId?groupName=$groupName")
+                },
                 onUserClick = { user ->
                     navController.navigate(
                         "chat/${user.id}?peerName=${user.username.ifBlank { user.email }}"
                     )
                 },
                 onGroupChatClick = { navController.navigate("group_chat") },
+                onCreateGroupClick = { navController.navigate("create_group") },
                 onProfileClick = { navController.navigate("profile") },
                 onLogout = {
                     navController.navigate("login") { popUpTo("home") { inclusive = true } }
+                }
+            )
+        }
+
+        composable("create_group") {
+            com.example.securechat.presentation.groupchat.create.CreateGroupScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onGroupCreated = { groupId ->
+                    navController.popBackStack()
+                    // Optionally navigate straight to the new group
                 }
             )
         }
@@ -99,6 +113,41 @@ fun SecureChatNavGraph() {
         ) {
             VideoCallScreen(
                 onEndCall = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "custom_group_chat/{groupId}?groupName={groupName}",
+            arguments = listOf(
+                navArgument("groupId")   { type = NavType.StringType },
+                navArgument("groupName") { type = NavType.StringType; defaultValue = "" }
+            )
+        ) { backStackEntry ->
+            val viewModel: com.example.securechat.presentation.groupchat.custom.CustomGroupChatViewModel = hiltViewModel(backStackEntry)
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+            val groupName = backStackEntry.arguments?.getString("groupName") ?: ""
+
+            com.example.securechat.presentation.groupchat.custom.CustomGroupChatScreen(
+                viewModel = viewModel,
+                groupNameArg = groupName,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToGroupInfo = { gid ->
+                    navController.navigate("custom_group_info/$gid")
+                }
+            )
+        }
+
+        composable(
+            route = "custom_group_info/{groupId}",
+            arguments = listOf(navArgument("groupId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val viewModel: com.example.securechat.presentation.groupchat.info.GroupInfoViewModel = hiltViewModel(backStackEntry)
+            com.example.securechat.presentation.groupchat.info.GroupInfoScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateHome = { 
+                    navController.navigate("home") { popUpTo("home") { inclusive = true } }
+                }
             )
         }
 
