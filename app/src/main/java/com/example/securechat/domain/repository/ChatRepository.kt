@@ -22,4 +22,15 @@ interface ChatRepository {
     fun isFriend(userId: String): Flow<Boolean>
     
     fun getMessageRequests(): Flow<List<Conversation>>
+
+    // Call Signaling
+    fun listenForIncomingCall(): Flow<com.example.securechat.domain.model.IncomingCallModel?>
+    suspend fun startCall(targetUserId: String, callerName: String, callerPhotoUrl: String?): Result<Unit>
+    suspend fun respondToCall(callerId: String, status: String): Result<Unit>
+    fun listenForCallStatus(targetUserId: String): Flow<String?>
+    suspend fun endCallSignal(targetUserId: String): Result<Unit>
+    
+    // Deletion
+    suspend fun deleteMessageForMe(chatId: String, messageId: String, isGroup: Boolean = false): Result<Unit>
+    suspend fun deleteMessageForEveryone(chatId: String, messageId: String, isGroup: Boolean = false): Result<Unit>
 }

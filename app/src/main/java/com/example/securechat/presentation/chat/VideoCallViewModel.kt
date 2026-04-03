@@ -16,6 +16,7 @@ enum class CallState { IDLE, CALLING, RINGING, CONNECTED, ENDED }
 @HiltViewModel
 class VideoCallViewModel @Inject constructor(
     private val webRtcClient: WebRtcClient,
+    private val chatRepository: com.example.securechat.domain.repository.ChatRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -65,9 +66,26 @@ class VideoCallViewModel @Inject constructor(
     init {
         initPeerConnection()
         if (isIncoming) {
+            // Receiver accepts the call from global dialog, then navigates here.
+            // On navigating here, they should send "accepted" to Firebase.
+            viewModelScope.launch {
+                chatRepository.respondToCall(targetUserId, "accepted")
+            }
+            // Listen for caller's offer
             listenForOffer()
         } else {
-            createOffer()
+            // Caller stars call
+            viewModelScope.launch {
+                val photoUrl = FirebaseAuth.getInstance().currentUser?.photoUrl?.toString()
+                chatRepository.startCall(targetUserId, peerName, photoUrl)
+                chatRepository.listenForCallStatus(targetUserId).collectLatest { status ->
+                    if (status == "accepted") {
+                        createOffer() // NOW we create offer
+                    } else if (status == "declined" || status == "ended") {
+                        endCall()
+                    }
+                }
+            }
         }
         listenForIceCandidates()
     }
@@ -142,7 +160,15 @@ class VideoCallViewModel @Inject constructor(
         _callState.value = CallState.ENDED
         peerConnection?.close()
         webRtcClient.stopLocalVideo()
-        // Here you should also update Firebase to tell the other side the call is over
+        viewModelScope.launch {
+            if (isIncoming) {
+                // I am receiver, I end the call by declining/ending it to the caller
+                chatRepository.respondToCall(targetUserId, "ended")
+            } else {
+                // I am caller, I end the call for the receiver
+                chatRepository.endCallSignal(targetUserId)
+            }
+        }
     }
 
     override fun onCleared() {

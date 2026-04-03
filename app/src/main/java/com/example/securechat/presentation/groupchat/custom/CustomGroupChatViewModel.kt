@@ -48,5 +48,14 @@ class CustomGroupChatViewModel @Inject constructor(
         viewModelScope.launch {
             groupRepository.sendCustomGroupMessage(groupId, content.trim())
         }
+    
+    fun deleteMessage(messageId: String, forEveryone: Boolean) {
+        viewModelScope.launch {
+            if (forEveryone) {
+                groupRepository.deleteMessageForEveryone(groupId, messageId)
+            } else {
+                groupRepository.deleteMessageForMe(groupId, messageId)
+            }
+        }
     }
 }

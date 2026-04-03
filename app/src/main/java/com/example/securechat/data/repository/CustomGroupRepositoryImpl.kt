@@ -220,15 +220,21 @@ class CustomGroupRepositoryImpl @Inject constructor() : CustomGroupRepository {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val msgs = snapshot.children.mapNotNull { child ->
                     val senderId = child.child("senderId").getValue(String::class.java) ?: return@mapNotNull null
+                    val isDeleted = child.child("deletedForEveryone").getValue(Boolean::class.java) ?: false
+                    val delMap = child.child("deletedForUsers").value as? Map<*, *>
+                    
+                    // Filter out if current user deleted this for themselves
+                    if (delMap?.containsKey(myUid) == true) return@mapNotNull null
+
                     Message(
                         id = child.key ?: return@mapNotNull null,
                         senderId = senderId,
-                        receiverId = groupId,
+                        senderName = child.child("senderName").getValue(String::class.java) ?: "User",
                         content = child.child("content").getValue(String::class.java) ?: "",
                         timestamp = child.child("timestamp").getValue(Long::class.java) ?: 0L,
                         isMine = senderId == myUid,
-                        senderName = child.child("senderName").getValue(String::class.java) ?: "User",
-                        status = "sent"
+                        isDeletedForEveryone = isDeleted,
+                        deletedForUsers = delMap?.keys?.filterIsInstance<String>()?.associateWith { true } ?: emptyMap()
                     )
                 }
                 trySend(msgs)
@@ -265,6 +271,42 @@ class CustomGroupRepositoryImpl @Inject constructor() : CustomGroupRepository {
             groupsRef.child(groupId).updateChildren(groupUpdates).await()
 
             Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteMessageForMe(groupId: String, messageId: String): Result<Unit> {
+        return try {
+            val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
+            messagesRef.child(groupId).child(messageId).child("deletedForUsers").child(myUid).setValue(true).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteMessageForEveryone(groupId: String, messageId: String): Result<Unit> {
+        return try {
+            val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
+            
+            // Fetch group info to check adminId
+            val groupSnap = groupsRef.child(groupId).get().await()
+            val group = groupSnap.getValue(com.example.securechat.domain.model.CustomGroup::class.java) 
+                ?: throw Exception("Không tìm thấy nhóm")
+            
+            val msgRef = messagesRef.child(groupId).child(messageId)
+            val msgSnap = msgRef.get().await()
+            val senderId = msgSnap.child("senderId").getValue(String::class.java)
+            
+            // Check if sender OR admin
+            if (myUid == senderId || myUid == group.adminId) {
+                msgRef.child("deletedForEveryone").setValue(true).await()
+                msgRef.child("content").setValue("Tin nhắn đã được thu hồi").await()
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Chỉ người gửi hoặc Quản trị viên mới có quyền thu hồi tin nhắn"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }

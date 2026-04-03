@@ -56,9 +56,15 @@ class ChatViewModel @Inject constructor(
         }
     }
     
-    fun sendFriendRequest() {
+    fun deleteMessage(messageId: String, forEveryone: Boolean) {
         otherUserId?.let { id ->
-            viewModelScope.launch { chatRepository.sendFriendRequest(id) }
+            viewModelScope.launch {
+                if (forEveryone) {
+                    chatRepository.deleteMessageForEveryone(id, messageId, isGroup = false)
+                } else {
+                    chatRepository.deleteMessageForMe(id, messageId, isGroup = false)
+                }
+            }
         }
     }
 }

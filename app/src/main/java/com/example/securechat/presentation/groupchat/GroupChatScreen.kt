@@ -30,7 +30,7 @@ private val Surface2 = Color(0xFF2C2C2E)
 private val TextMain = Color(0xFFFFFFFF)
 private val TextSub  = Color(0xFF8E8E93)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun GroupChatScreen(
     viewModel: GroupChatViewModel = hiltViewModel(),
@@ -41,8 +41,44 @@ fun GroupChatScreen(
     val listState      = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
+    // Selection State
+    var selectedMessage by remember { mutableStateOf<Message?>(null) }
+    val sheetState = rememberModalBottomSheetState()
+    var showSheet by remember { mutableStateOf(false) }
+
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+    }
+
+    if (showSheet && selectedMessage != null) {
+        ModalBottomSheet(
+            onDismissRequest = { showSheet = false },
+            sheetState = sheetState,
+            containerColor = Surface1
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
+                if (selectedMessage!!.isMine && !selectedMessage!!.isDeletedForEveryone) {
+                    ListItem(
+                        headlineContent = { Text("Thu hồi", color = Color.Red) },
+                        leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.DeleteForever, contentDescription = null, tint = Color.Red) },
+                        modifier = Modifier.androidx.compose.foundation.clickable {
+                            viewModel.deleteMessage(selectedMessage!!.id, forEveryone = true)
+                            showSheet = false
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
+                ListItem(
+                    headlineContent = { Text("Gỡ ở phía bạn", color = TextMain) },
+                    leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = null, tint = TextMain) },
+                    modifier = Modifier.androidx.compose.foundation.clickable {
+                        viewModel.deleteMessage(selectedMessage!!.id, forEveryone = false)
+                        showSheet = false
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+            }
+        }
     }
 
     Scaffold(
@@ -107,22 +143,59 @@ fun GroupChatScreen(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             item { Spacer(Modifier.height(8.dp)) }
-            items(messages, key = { it.id }) { msg -> GroupMessageBubble(msg) }
+            items(messages, key = { it.id }) { msg -> 
+                GroupMessageBubble(
+                    msg = msg,
+                    onLongClick = {
+                        selectedMessage = msg
+                        showSheet = true
+                    }
+                ) 
+            }
             item { Spacer(Modifier.height(8.dp)) }
         }
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun GroupMessageBubble(msg: Message) {
+private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
+    val bubbleColor = if (msg.isDeletedForEveryone) {
+        Color.Transparent
+    } else if (msg.isMine) {
+        Primary
+    } else {
+        Surface2
+    }
+    
+    val textColor = if (msg.isDeletedForEveryone) TextSub else TextMain
+
     if (msg.isMine) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 4.dp, bottomStart = 18.dp, bottomEnd = 18.dp))
-                    .background(Primary).padding(horizontal = 14.dp, vertical = 10.dp).widthIn(max = 260.dp)
+                    .background(bubbleColor)
+                    .androidx.compose.foundation.border(
+                        width = if (msg.isDeletedForEveryone) 1.dp else 0.dp,
+                        color = if (msg.isDeletedForEveryone) Surface2 else Color.Transparent,
+                        shape = RoundedCornerShape(18.dp)
+                    )
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = if (!msg.isDeletedForEveryone) onLongClick else null
+                    )
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .widthIn(max = 260.dp)
             ) {
-                Text(msg.content, color = Color.White, fontSize = 15.sp)
+                Text(
+                    text = msg.content, 
+                    color = textColor, 
+                    fontSize = 15.sp,
+                    style = if (msg.isDeletedForEveryone) androidx.compose.ui.text.TextStyle(
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                    ) else androidx.compose.ui.text.TextStyle.Default
+                )
             }
         }
     } else {
@@ -134,11 +207,30 @@ private fun GroupMessageBubble(msg: Message) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 18.dp))
-                        .background(Surface2).padding(horizontal = 14.dp, vertical = 10.dp).widthIn(max = 260.dp)
+                        .background(bubbleColor)
+                        .androidx.compose.foundation.border(
+                            width = if (msg.isDeletedForEveryone) 1.dp else 0.dp,
+                            color = if (msg.isDeletedForEveryone) Surface2 else Color.Transparent,
+                            shape = RoundedCornerShape(18.dp)
+                        )
+                        .combinedClickable(
+                            onClick = {},
+                            onLongClick = onLongClick
+                        )
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .widthIn(max = 260.dp)
                 ) {
-                    Text(msg.content, color = TextMain, fontSize = 15.sp)
+                    Text(
+                        text = msg.content, 
+                        color = textColor, 
+                        fontSize = 15.sp,
+                        style = if (msg.isDeletedForEveryone) androidx.compose.ui.text.TextStyle(
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                        ) else androidx.compose.ui.text.TextStyle.Default
+                    )
                 }
             }
         }
     }
 }
+

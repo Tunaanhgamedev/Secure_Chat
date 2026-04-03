@@ -1,6 +1,8 @@
 package com.example.securechat.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
@@ -23,6 +25,26 @@ fun SecureChatNavGraph() {
     val navController = rememberNavController()
     val auth          = FirebaseAuth.getInstance()
     val startDest     = remember { if (auth.currentUser != null) "home" else "login" }
+
+    // Global Call Manager State
+    val callManagerViewModel: com.example.securechat.presentation.call.CallManagerViewModel = hiltViewModel()
+    val incomingCall by callManagerViewModel.incomingCall.collectAsState()
+
+    // Show Dialog if there's an incoming call ringing
+    if (incomingCall?.status == "ringing") {
+        com.example.securechat.presentation.call.IncomingCallDialog(
+            callModel = incomingCall!!,
+            onAccept = {
+                callManagerViewModel.acceptCall(incomingCall!!.callerId) {
+                    val peerName = incomingCall!!.callerName
+                    navController.navigate("call/${incomingCall!!.callerId}?peerName=$peerName&isIncoming=true")
+                }
+            },
+            onDecline = {
+                callManagerViewModel.declineCall(incomingCall!!.callerId)
+            }
+        )
+    }
 
     NavHost(navController = navController, startDestination = startDest) {
 

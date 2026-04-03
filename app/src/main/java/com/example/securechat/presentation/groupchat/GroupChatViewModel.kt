@@ -13,7 +13,8 @@ import javax.inject.Inject
 @HiltViewModel
 class GroupChatViewModel @Inject constructor(
     private val getGroupMessagesUseCase: GetGroupMessagesUseCase,
-    private val sendGroupMessageUseCase: SendGroupMessageUseCase
+    private val sendGroupMessageUseCase: SendGroupMessageUseCase,
+    private val chatRepository: com.example.securechat.domain.repository.ChatRepository
 ) : ViewModel() {
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
@@ -31,6 +32,16 @@ class GroupChatViewModel @Inject constructor(
         viewModelScope.launch {
             try { sendGroupMessageUseCase(content.trim()) }
             catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun deleteMessage(messageId: String, forEveryone: Boolean) {
+        viewModelScope.launch {
+            if (forEveryone) {
+                chatRepository.deleteMessageForEveryone("group", messageId, isGroup = true)
+            } else {
+                chatRepository.deleteMessageForMe("group", messageId, isGroup = true)
+            }
         }
     }
 }

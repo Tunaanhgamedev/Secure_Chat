@@ -17,4 +17,8 @@ interface CustomGroupRepository {
     
     fun getCustomGroupMessages(groupId: String): Flow<List<com.example.securechat.domain.model.Message>>
     suspend fun sendCustomGroupMessage(groupId: String, content: String): Result<Unit>
+    
+    // Deletion
+    suspend fun deleteMessageForMe(groupId: String, messageId: String): Result<Unit>
+    suspend fun deleteMessageForEveryone(groupId: String, messageId: String): Result<Unit>
 }

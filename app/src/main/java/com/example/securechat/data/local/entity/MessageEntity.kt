@@ -10,5 +10,7 @@ data class MessageEntity(
     val content: String,
     val timestamp: Long,
     val isMine: Boolean,
-    val chatId: String // "group" for group chats, or "idA_idB" for private chats
+    val chatId: String,
+    val isDeletedForEveryone: Boolean = false,
+    val deletedByUsers: String = "" // Comma-separated UIDs
 )

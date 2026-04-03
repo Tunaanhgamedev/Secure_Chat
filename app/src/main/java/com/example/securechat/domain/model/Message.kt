@@ -6,5 +6,7 @@ data class Message(
     val senderName: String,
     val content: String,
     val timestamp: Long,
-    val isMine: Boolean
+    val isMine: Boolean,
+    val isDeletedForEveryone: Boolean = false,
+    val deletedForUsers: Map<String, Boolean> = emptyMap()
 )

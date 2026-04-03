@@ -36,7 +36,7 @@ private val DarkBackground = Color(0xFF1C1C1E)
 private val SurfaceVariant = Color(0xFF2C2C2E)
 private val SecondaryText = Color(0xFF8E8E93)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel(),
@@ -48,14 +48,49 @@ fun ChatScreen(
     val isFriend: Boolean = viewModel.isFriend.collectAsState(initial = false).value
     val peerUser: User? = viewModel.peerUser.collectAsState().value
     val inputTextState = remember { mutableStateOf<String>("") }
-    val inputText = inputTextState.value
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+
+    // Message Selection State for BottomSheet
+    var selectedMessage by remember { mutableStateOf<Message?>(null) }
+    val sheetState = rememberModalBottomSheetState()
+    var showSheet by remember { mutableStateOf(false) }
 
     val isPeerActuallyOnline = if (peerUser?.isPresenceHidden == true) false else (peerUser?.isOnline ?: false)
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+    }
+
+    if (showSheet && selectedMessage != null) {
+        ModalBottomSheet(
+            onDismissRequest = { showSheet = false },
+            sheetState = sheetState,
+            containerColor = SurfaceVariant
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
+                if (selectedMessage!!.isMine && !selectedMessage!!.isDeletedForEveryone) {
+                    ListItem(
+                        headlineContent = { Text("Thu hồi", color = Color.Red) },
+                        leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.DeleteForever, contentDescription = null, tint = Color.Red) },
+                        modifier = Modifier.androidx.compose.foundation.clickable {
+                            viewModel.deleteMessage(selectedMessage!!.id, forEveryone = true)
+                            showSheet = false
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
+                ListItem(
+                    headlineContent = { Text("Gỡ ở phía bạn", color = Color.White) },
+                    leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = null, tint = Color.White) },
+                    modifier = Modifier.androidx.compose.foundation.clickable {
+                        viewModel.deleteMessage(selectedMessage!!.id, forEveryone = false)
+                        showSheet = false
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+            }
+        }
     }
 
     Scaffold(
@@ -79,7 +114,7 @@ fun ChatScreen(
                             Text(peerName, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp)
                             Text(
                                 text = statusText,
-                                color = if (isPeerActuallyOnline) Color(0xFF30D158) else Color(0xFF8E8E93), // Using hardcoded or local colors to be safe
+                                color = if (isPeerActuallyOnline) Color(0xFF30D158) else Color(0xFF8E8E93),
                                 fontSize = 11.sp
                             )
                         }
@@ -179,18 +214,34 @@ fun ChatScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 item { Spacer(Modifier.height(8.dp)) }
-                items(messages, key = { it.id }) { msg -> MessengerBubble(msg) }
+                items(messages, key = { it.id }) { msg -> 
+                    MessengerBubble(
+                        msg = msg, 
+                        onLongClick = {
+                            selectedMessage = msg
+                            showSheet = true
+                        }
+                    ) 
+                }
                 item { Spacer(Modifier.height(8.dp)) }
             }
         }
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun MessengerBubble(msg: Message) {
+fun MessengerBubble(msg: Message, onLongClick: () -> Unit) {
     val alignment = if (msg.isMine) Alignment.CenterEnd else Alignment.CenterStart
-    val bubbleColor = if (msg.isMine) MessengerBlue else SurfaceVariant
-    val textColor = Color.White
+    val bubbleColor = if (msg.isDeletedForEveryone) {
+        Color.Transparent
+    } else if (msg.isMine) {
+        MessengerBlue
+    } else {
+        SurfaceVariant
+    }
+    
+    val textColor = if (msg.isDeletedForEveryone) SecondaryText else Color.White
 
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = alignment) {
         Box(
@@ -204,10 +255,26 @@ fun MessengerBubble(msg: Message) {
                     )
                 )
                 .background(bubbleColor)
+                .androidx.compose.foundation.border(
+                    width = if (msg.isDeletedForEveryone) 1.dp else 0.dp,
+                    color = if (msg.isDeletedForEveryone) SurfaceVariant else Color.Transparent,
+                    shape = RoundedCornerShape(18.dp)
+                )
+                .androidx.compose.foundation.combinedClickable(
+                    onClick = {},
+                    onLongClick = if (!msg.isDeletedForEveryone) onLongClick else null
+                )
                 .padding(horizontal = 14.dp, vertical = 10.dp)
                 .widthIn(max = 260.dp)
         ) {
-            Text(text = msg.content, color = textColor, fontSize = 15.sp)
+            Text(
+                text = msg.content, 
+                color = textColor, 
+                fontSize = 15.sp,
+                style = if (msg.isDeletedForEveryone) androidx.compose.ui.text.TextStyle(
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                ) else androidx.compose.ui.text.TextStyle.Default
+            )
         }
     }
 }

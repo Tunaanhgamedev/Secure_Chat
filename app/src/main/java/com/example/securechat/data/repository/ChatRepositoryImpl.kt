@@ -202,14 +202,19 @@ class ChatRepositoryImpl @Inject constructor(
             val listener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val messages = snapshot.children.mapNotNull { child ->
+                        val delMap = child.child("deletedForUsers").value as? Map<*, *>
+                        val delUids = delMap?.keys?.filterIsInstance<String>()?.joinToString(",") ?: ""
+                        
                         MessageEntity(
-                            id         = child.key ?: return@mapNotNull null,
-                            senderId   = child.child("senderId").getValue(String::class.java) ?: "",
-                            senderName = child.child("senderName").getValue(String::class.java) ?: "",
-                            content    = child.child("content").getValue(String::class.java) ?: "",
-                            timestamp  = child.child("timestamp").getValue(Long::class.java) ?: 0L,
-                            isMine     = child.child("senderId").getValue(String::class.java) == myId,
-                            chatId     = chatId
+                            id                   = child.key ?: return@mapNotNull null,
+                            senderId             = child.child("senderId").getValue(String::class.java) ?: "",
+                            senderName           = child.child("senderName").getValue(String::class.java) ?: "",
+                            content              = child.child("content").getValue(String::class.java) ?: "",
+                            timestamp            = child.child("timestamp").getValue(Long::class.java) ?: 0L,
+                            isMine               = child.child("senderId").getValue(String::class.java) == myId,
+                            chatId               = chatId,
+                            isDeletedForEveryone = child.child("deletedForEveryone").getValue(Boolean::class.java) ?: false,
+                            deletedByUsers       = delUids
                         )
                     }
                     launch { messageDao.insertMessages(messages) }
@@ -218,7 +223,9 @@ class ChatRepositoryImpl @Inject constructor(
             }
             val ref = db.getReference("messages").child(chatId)
             ref.addValueEventListener(listener)
-            val localFlow = messageDao.getMessages(chatId).map { entities -> entities.map { it.toDomain() } }
+            val localFlow = messageDao.getMessages(chatId).map { entities -> 
+                entities.map { it.toDomain() }.filter { !it.deletedForUsers.containsKey(myId) } 
+            }
             launch { localFlow.collect { trySend(it) } }
             awaitClose { ref.removeEventListener(listener) }
         }
@@ -251,14 +258,19 @@ class ChatRepositoryImpl @Inject constructor(
             val listener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val messages = snapshot.children.mapNotNull { child ->
+                        val delMap = child.child("deletedForUsers").value as? Map<*, *>
+                        val delUids = delMap?.keys?.filterIsInstance<String>()?.joinToString(",") ?: ""
+
                         MessageEntity(
-                            id         = child.key ?: return@mapNotNull null,
-                            senderId   = child.child("senderId").getValue(String::class.java) ?: "",
-                            senderName = child.child("senderName").getValue(String::class.java) ?: "",
-                            content    = child.child("content").getValue(String::class.java) ?: "",
-                            timestamp  = child.child("timestamp").getValue(Long::class.java) ?: 0L,
-                            isMine     = child.child("senderId").getValue(String::class.java) == myId,
-                            chatId     = chatId
+                            id                   = child.key ?: return@mapNotNull null,
+                            senderId             = child.child("senderId").getValue(String::class.java) ?: "",
+                            senderName           = child.child("senderName").getValue(String::class.java) ?: "",
+                            content              = child.child("content").getValue(String::class.java) ?: "",
+                            timestamp            = child.child("timestamp").getValue(Long::class.java) ?: 0L,
+                            isMine               = child.child("senderId").getValue(String::class.java) == myId,
+                            chatId               = chatId,
+                            isDeletedForEveryone = child.child("deletedForEveryone").getValue(Boolean::class.java) ?: false,
+                            deletedByUsers       = delUids
                         )
                     }
                     launch { messageDao.insertMessages(messages) }
@@ -267,7 +279,9 @@ class ChatRepositoryImpl @Inject constructor(
             }
             val ref = db.getReference("group_messages")
             ref.addValueEventListener(listener)
-            val localFlow = messageDao.getMessages(chatId).map { entities -> entities.map { it.toDomain() } }
+            val localFlow = messageDao.getMessages(chatId).map { entities -> 
+                entities.map { it.toDomain() }.filter { !it.deletedForUsers.containsKey(myId) }
+            }
             launch { localFlow.collect { trySend(it) } }
             awaitClose { ref.removeEventListener(listener) }
         }
@@ -299,6 +313,134 @@ class ChatRepositoryImpl @Inject constructor(
         db.getReference(node).child(otherUserId).child(myId).setValue(peerData)
     }
 
-    private fun MessageEntity.toDomain() = Message(id = id, senderId = senderId, senderName = senderName, content = content, timestamp = timestamp, isMine = isMine)
+    private fun MessageEntity.toDomain() = Message(
+        id                   = id, 
+        senderId             = senderId, 
+        senderName           = senderName, 
+        content              = content, 
+        timestamp            = timestamp, 
+        isMine               = isMine,
+        isDeletedForEveryone = isDeletedForEveryone,
+        deletedForUsers      = deletedByUsers.split(",").filter { it.isNotBlank() }.associateWith { true }
+    )
     private fun chatId(a: String, b: String) = if (a < b) "${a}_$b" else "${b}_$a"
+
+    // ─── Call Signaling ─────────────────────────────────────────────────────────
+
+    override fun listenForIncomingCall(): Flow<com.example.securechat.domain.model.IncomingCallModel?> = callbackFlow {
+        val myUid = auth.currentUser?.uid ?: run { trySend(null); close(); return@callbackFlow }
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    val callModel = snapshot.getValue(com.example.securechat.domain.model.IncomingCallModel::class.java)
+                    trySend(callModel)
+                } else {
+                    trySend(null)
+                }
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        val ref = db.getReference("incoming_calls").child(myUid)
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    override suspend fun startCall(targetUserId: String, callerName: String, callerPhotoUrl: String?): Result<Unit> {
+        return try {
+            val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
+            val callModel = com.example.securechat.domain.model.IncomingCallModel(
+                callerId = myUid,
+                callerName = callerName,
+                callerPhotoUrl = callerPhotoUrl,
+                status = "ringing",
+                timestamp = System.currentTimeMillis()
+            )
+            db.getReference("incoming_calls").child(targetUserId).setValue(callModel).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun respondToCall(callerId: String, status: String): Result<Unit> {
+        return try {
+            val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
+            // Update the caller's node that I declined/accepted
+            if (status == "ended" || status == "declined") {
+                db.getReference("incoming_calls").child(myUid).removeValue().await()
+                db.getReference("incoming_calls").child(callerId).child("status").setValue(status).await()
+            } else {
+                db.getReference("incoming_calls").child(myUid).child("status").setValue(status).await()
+                db.getReference("incoming_calls").child(callerId).child("status").setValue(status).await() // Tell caller to proceed
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override fun listenForCallStatus(targetUserId: String): Flow<String?> = callbackFlow {
+        val myUid = auth.currentUser?.uid ?: run { trySend(null); close(); return@callbackFlow }
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    val status = snapshot.child("status").getValue(String::class.java)
+                    trySend(status)
+                } else {
+                    trySend(null)
+                }
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        // I am the caller, I listen to my own incoming_calls node because the receiver replies back to me there
+        // Or wait. When I start a call, I write to targetUserId
+        // Receiver responds by setting my incoming_calls/myUid/status = accepted
+        val ref = db.getReference("incoming_calls").child(myUid)
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    override suspend fun endCallSignal(targetUserId: String): Result<Unit> {
+        return try {
+            val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
+            db.getReference("incoming_calls").child(targetUserId).removeValue().await()
+            db.getReference("incoming_calls").child(myUid).removeValue().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    override suspend fun deleteMessageForMe(chatId: String, messageId: String, isGroup: Boolean): Result<Unit> {
+        return try {
+            val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
+            val baseNode = if (isGroup) "group_messages" else "messages/$chatId"
+            db.getReference(baseNode).child(messageId).child("deletedForUsers").child(myUid).setValue(true).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteMessageForEveryone(chatId: String, messageId: String, isGroup: Boolean): Result<Unit> {
+        return try {
+            val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
+            val baseNode = if (isGroup) "group_messages" else "messages/$chatId"
+            val ref = db.getReference(baseNode).child(messageId)
+            
+            val snap = ref.get().await()
+            val senderId = snap.child("senderId").getValue(String::class.java)
+            
+            // For global/private chat, only sender can delete for everyone.
+            // Custom groups handle admin rights in their own repository.
+            if (senderId == myUid) {
+                ref.child("deletedForEveryone").setValue(true).await()
+                ref.child("content").setValue("Tin nhắn đã được thu hồi").await()
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Bạn không thể thu hồi tin nhắn của người khác"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
