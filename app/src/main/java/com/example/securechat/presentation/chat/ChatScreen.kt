@@ -107,7 +107,7 @@ fun ChatScreen(
                     ListItem(
                         headlineContent = { Text("Thu hồi", color = Color.Red) },
                         leadingContent = { Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.Red) },
-                        modifier = Modifier.androidx.compose.foundation.clickable {
+                        modifier = Modifier.clickable {
                             viewModel.deleteMessage(selectedMessage!!.id, forEveryone = true)
                             showSheet = false
                         },
@@ -117,7 +117,7 @@ fun ChatScreen(
                 ListItem(
                     headlineContent = { Text("Gỡ ở phía bạn", color = Color.White) },
                         leadingContent = { Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.White) },
-                    modifier = Modifier.androidx.compose.foundation.clickable {
+                    modifier = Modifier.clickable {
                         viewModel.deleteMessage(selectedMessage!!.id, forEveryone = false)
                         showSheet = false
                     },
@@ -297,12 +297,12 @@ fun MessengerBubble(msg: Message, onLongClick: () -> Unit) {
                     )
                 )
                 .background(bubbleColor)
-                .androidx.compose.foundation.border(
+                .border(
                     width = if (msg.isDeletedForEveryone) 1.dp else 0.dp,
                     color = if (msg.isDeletedForEveryone) SurfaceVariant else Color.Transparent,
                     shape = RoundedCornerShape(18.dp)
                 )
-                .androidx.compose.foundation.combinedClickable(
+                .combinedClickable(
                     onClick = {},
                     onLongClick = if (!msg.isDeletedForEveryone) onLongClick else null
                 )
@@ -320,7 +320,7 @@ fun MessengerBubble(msg: Message, onLongClick: () -> Unit) {
                                 .fillMaxWidth()
                                 .heightIn(max = 200.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .androidx.compose.foundation.clickable {
+                                .clickable {
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(msg.fileUrl))
                                     context.startActivity(intent)
                                 }
@@ -331,7 +331,7 @@ fun MessengerBubble(msg: Message, onLongClick: () -> Unit) {
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                .androidx.compose.foundation.clickable {
+                                .clickable {
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(msg.fileUrl))
                                     context.startActivity(intent)
                                 }

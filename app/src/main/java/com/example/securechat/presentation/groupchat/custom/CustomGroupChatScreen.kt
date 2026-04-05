@@ -238,7 +238,7 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                 modifier = Modifier
                     .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 4.dp, bottomStart = 18.dp, bottomEnd = 18.dp))
                     .background(bubbleColor)
-                    .androidx.compose.foundation.border(
+                    .border(
                         width = if (msg.isDeletedForEveryone) 1.dp else 0.dp,
                         color = if (msg.isDeletedForEveryone) SurfaceVariant else Color.Transparent,
                         shape = RoundedCornerShape(18.dp)
@@ -261,7 +261,7 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                                     .fillMaxWidth()
                                     .heightIn(max = 200.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .androidx.compose.foundation.clickable {
+                                    .clickable {
                                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(msg.fileUrl))
                                         context.startActivity(intent)
                                     }
@@ -272,7 +272,7 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                                 verticalAlignment = Alignment.CenterVertically, 
                                 modifier = Modifier
                                     .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                    .androidx.compose.foundation.clickable {
+                                    .clickable {
                                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(msg.fileUrl))
                                         context.startActivity(intent)
                                     }
@@ -306,7 +306,7 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                     modifier = Modifier
                         .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 18.dp))
                         .background(bubbleColor)
-                        .androidx.compose.foundation.border(
+                        .border(
                             width = if (msg.isDeletedForEveryone) 1.dp else 0.dp,
                             color = if (msg.isDeletedForEveryone) SurfaceVariant else Color.Transparent,
                             shape = RoundedCornerShape(18.dp)
@@ -329,7 +329,7 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                                         .fillMaxWidth()
                                         .heightIn(max = 200.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .androidx.compose.foundation.clickable {
+                                        .clickable {
                                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(msg.fileUrl))
                                             context.startActivity(intent)
                                         }
@@ -340,7 +340,7 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                                     verticalAlignment = Alignment.CenterVertically, 
                                     modifier = Modifier
                                         .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                        .androidx.compose.foundation.clickable {
+                                        .clickable {
                                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(msg.fileUrl))
                                             context.startActivity(intent)
                                         }
