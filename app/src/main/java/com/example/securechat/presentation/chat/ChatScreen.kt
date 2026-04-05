@@ -28,6 +28,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.securechat.domain.model.Message
@@ -305,6 +307,7 @@ fun MessengerBubble(msg: Message, onLongClick: () -> Unit) {
         ) {
             Column {
                 if (!msg.isDeletedForEveryone && msg.fileUrl != null) {
+                    val context = LocalContext.current
                     if (msg.fileType?.startsWith("image/") == true) {
                         AsyncImage(
                             model = msg.fileUrl,
@@ -313,6 +316,10 @@ fun MessengerBubble(msg: Message, onLongClick: () -> Unit) {
                                 .fillMaxWidth()
                                 .heightIn(max = 200.dp)
                                 .clip(RoundedCornerShape(8.dp))
+                                .androidx.compose.foundation.clickable {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(msg.fileUrl))
+                                    context.startActivity(intent)
+                                }
                         )
                         Spacer(Modifier.height(4.dp))
                     } else {
@@ -320,6 +327,10 @@ fun MessengerBubble(msg: Message, onLongClick: () -> Unit) {
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                .androidx.compose.foundation.clickable {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(msg.fileUrl))
+                                    context.startActivity(intent)
+                                }
                                 .padding(8.dp)
                         ) {
                             Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Color.White)

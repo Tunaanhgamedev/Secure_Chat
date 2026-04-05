@@ -23,6 +23,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import android.net.Uri
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.securechat.domain.model.Message
 import com.example.securechat.presentation.home.AvatarCircle
@@ -225,15 +227,32 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
             ) {
                 Column {
                     if (!msg.isDeletedForEveryone && msg.fileUrl != null) {
+                        val context = LocalContext.current
                         if (msg.fileType?.startsWith("image/") == true) {
                             AsyncImage(
                                 model = msg.fileUrl,
                                 contentDescription = msg.fileName,
-                                modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp).clip(RoundedCornerShape(8.dp))
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 200.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .androidx.compose.foundation.clickable {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(msg.fileUrl))
+                                        context.startActivity(intent)
+                                    }
                             )
                             Spacer(Modifier.height(4.dp))
                         } else {
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(8.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically, 
+                                modifier = Modifier
+                                    .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                    .androidx.compose.foundation.clickable {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(msg.fileUrl))
+                                        context.startActivity(intent)
+                                    }
+                                    .padding(8.dp)
+                            ) {
                                 Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Color.White)
                                 Spacer(Modifier.width(8.dp))
                                 Text(msg.fileName ?: "Tệp", color = Color.White, fontSize = 12.sp, maxLines = 1)
@@ -276,15 +295,32 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                 ) {
                     Column {
                         if (!msg.isDeletedForEveryone && msg.fileUrl != null) {
+                            val context = LocalContext.current
                             if (msg.fileType?.startsWith("image/") == true) {
                                 AsyncImage(
                                     model = msg.fileUrl,
                                     contentDescription = msg.fileName,
-                                    modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp).clip(RoundedCornerShape(8.dp))
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 200.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .androidx.compose.foundation.clickable {
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(msg.fileUrl))
+                                            context.startActivity(intent)
+                                        }
                                 )
                                 Spacer(Modifier.height(4.dp))
                             } else {
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(8.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically, 
+                                    modifier = Modifier
+                                        .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                        .androidx.compose.foundation.clickable {
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(msg.fileUrl))
+                                            context.startActivity(intent)
+                                        }
+                                        .padding(8.dp)
+                                ) {
                                     Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Color.White)
                                     Spacer(Modifier.width(8.dp))
                                     Text(msg.fileName ?: "Tệp", color = Color.White, fontSize = 12.sp, maxLines = 1)

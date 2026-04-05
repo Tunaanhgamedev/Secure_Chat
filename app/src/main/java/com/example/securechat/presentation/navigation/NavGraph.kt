@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -31,7 +32,11 @@ fun SecureChatNavGraph() {
     val incomingCall by callManagerViewModel.incomingCall.collectAsState()
 
     // Show Dialog if there's an incoming call ringing
-    if (incomingCall?.status == "ringing") {
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentBackStackEntry?.destination?.route
+    val isNotOnCallScreen = currentRoute == null || !currentRoute.startsWith("call/")
+
+    if (incomingCall?.status == "ringing" && isNotOnCallScreen) {
         com.example.securechat.presentation.call.IncomingCallDialog(
             callModel = incomingCall!!,
             onAccept = {

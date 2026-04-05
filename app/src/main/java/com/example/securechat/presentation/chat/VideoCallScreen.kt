@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CallEnd
+import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideocamOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import org.webrtc.EglBase
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,7 +48,7 @@ fun VideoCallScreen(
                 CallingUI(viewModel.peerName)
             }
             CallState.CONNECTED -> {
-                VideoUI(remoteTrack)
+                VideoUI(remoteTrack, viewModel.eglContext)
             }
             else -> {}
         }
@@ -54,7 +56,8 @@ fun VideoCallScreen(
         // Common Controls at bottom
         CallControls(
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp),
-            onEndCall = { viewModel.endCall(); onEndCall() }
+            onEndCall = { viewModel.endCall(); onEndCall() },
+            onSwitchCamera = { viewModel.switchCamera() }
         )
     }
 }
@@ -94,29 +97,53 @@ fun CallingUI(name: String) {
 }
 
 @Composable
-fun VideoUI(remoteTrack: VideoTrack?) {
+fun VideoUI(remoteTrack: VideoTrack?, eglContext: EglBase.Context) {
     // Large Remote View
     Box(modifier = Modifier.fillMaxSize()) {
         if (remoteTrack != null) {
-            WebRTCVideoView(videoTrack = remoteTrack, modifier = Modifier.fillMaxSize())
+            WebRTCVideoView(videoTrack = remoteTrack, eglContext = eglContext, modifier = Modifier.fillMaxSize())
         } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Color(0xFF0A84FF))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color(0xFF0A84FF))
+                    Spacer(Modifier.height(8.dp))
+                    Text("Đang kết nối tín hiệu...", color = Color.White, fontSize = 14.sp)
+                }
             }
         }
         
-        // Small floating local view
-        // In a real app, we'd add local view here using surfaceViewRenderer
+        // Small floating local view (Top Right)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+                .size(width = 120.dp, height = 180.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.Black)
+        ) {
+            val viewModel: VideoCallViewModel = hiltViewModel()
+            AndroidView(
+                factory = { context ->
+                    SurfaceViewRenderer(context).apply {
+                        init(eglContext, null)
+                        setEnableHardwareScaler(true)
+                        setMirror(true)
+                        viewModel.getLocalVideoTrack().addSink(this)
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 }
 
 @Composable
-fun WebRTCVideoView(videoTrack: VideoTrack, modifier: Modifier = Modifier) {
+fun WebRTCVideoView(videoTrack: VideoTrack, eglContext: EglBase.Context, modifier: Modifier = Modifier) {
     AndroidView(
         factory = { context ->
             SurfaceViewRenderer(context).apply {
-                // We'd need eglBaseContext from webRtcClient. This is tricky with DI in factory.
-                // For now, simplify or assume it's initialized.
+                init(eglContext, null)
+                setEnableHardwareScaler(true)
             }
         },
         update = { view ->
@@ -127,7 +154,11 @@ fun WebRTCVideoView(videoTrack: VideoTrack, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun CallControls(modifier: Modifier = Modifier, onEndCall: () -> Unit) {
+fun CallControls(
+    modifier: Modifier = Modifier, 
+    onEndCall: () -> Unit,
+    onSwitchCamera: () -> Unit
+) {
     var isMicOn by remember { mutableStateOf(true) }
     var isVideoOn by remember { mutableStateOf(true) }
 
@@ -141,6 +172,13 @@ fun CallControls(modifier: Modifier = Modifier, onEndCall: () -> Unit) {
             modifier = Modifier.size(56.dp).clip(CircleShape).background(if (isMicOn) Color.White.copy(0.1f) else Color.White)
         ) {
             Icon(if (isMicOn) Icons.Default.Mic else Icons.Default.MicOff, contentDescription = null, tint = if (isMicOn) Color.White else Color.Black)
+        }
+
+        IconButton(
+            onClick = onSwitchCamera,
+            modifier = Modifier.size(56.dp).clip(CircleShape).background(Color.White.copy(0.1f))
+        ) {
+            Icon(Icons.Default.FlipCameraAndroid, contentDescription = "Đảo Camera", tint = Color.White)
         }
 
         FloatingActionButton(

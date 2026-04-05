@@ -24,6 +24,8 @@ class VideoCallViewModel @Inject constructor(
     val peerName: String     = savedStateHandle.get<String>("peerName") ?: ""
     val isIncoming: Boolean  = savedStateHandle.get<Boolean>("isIncoming") ?: false
 
+    val eglContext: EglBase.Context = webRtcClient.eglBaseContext
+
     private val myUid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     private val callId = if (myUid < targetUserId) "${myUid}_$targetUserId" else "${targetUserId}_$myUid"
 
@@ -170,6 +172,12 @@ class VideoCallViewModel @Inject constructor(
             }
         }
     }
+
+    fun switchCamera() {
+        webRtcClient.switchCamera()
+    }
+
+    fun getLocalVideoTrack(): VideoTrack = webRtcClient.getLocalVideoTrack()
 
     override fun onCleared() {
         super.onCleared()

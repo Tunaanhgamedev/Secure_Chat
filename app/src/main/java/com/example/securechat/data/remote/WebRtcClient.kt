@@ -78,6 +78,10 @@ class WebRtcClient @Inject constructor(
         videoCapturer = null
     }
 
+    fun switchCamera() {
+        videoCapturer?.switchCamera(null)
+    }
+
     // ─── Signaling Proxy ──────────────────────────────────────────────────────
     fun sendOffer(callId: String, sdp: String) = signalingClient.sendOffer(callId, sdp)
     fun sendAnswer(callId: String, sdp: String) = signalingClient.sendAnswer(callId, sdp)
