@@ -99,7 +99,7 @@ fun CustomGroupChatScreen(
                 if (canRevoke && !selectedMessage!!.isDeletedForEveryone) {
                     ListItem(
                         headlineContent = { Text("Thu hồi", color = Color.Red) },
-                        leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.DeleteForever, contentDescription = null, tint = Color.Red) },
+                        leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = null, tint = Color.Red) },
                         modifier = Modifier.clickable {
                             viewModel.deleteMessage(selectedMessage!!.id, forEveryone = true)
                             showSheet = false

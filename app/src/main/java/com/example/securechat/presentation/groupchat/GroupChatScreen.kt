@@ -89,7 +89,7 @@ fun GroupChatScreen(
                 if (selectedMessage!!.isMine && !selectedMessage!!.isDeletedForEveryone) {
                     ListItem(
                         headlineContent = { Text("Thu hồi", color = Color.Red) },
-                        leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.DeleteForever, contentDescription = null, tint = Color.Red) },
+                        leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = null, tint = Color.Red) },
                         modifier = Modifier.androidx.compose.foundation.clickable {
                             viewModel.deleteMessage(selectedMessage!!.id, forEveryone = true)
                             showSheet = false
