@@ -10,6 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -89,7 +91,7 @@ fun GroupChatScreen(
                 if (selectedMessage!!.isMine && !selectedMessage!!.isDeletedForEveryone) {
                     ListItem(
                         headlineContent = { Text("Thu hồi", color = Color.Red) },
-                        leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = null, tint = Color.Red) },
+                        leadingContent = { Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.Red) },
                         modifier = Modifier.androidx.compose.foundation.clickable {
                             viewModel.deleteMessage(selectedMessage!!.id, forEveryone = true)
                             showSheet = false
@@ -99,7 +101,7 @@ fun GroupChatScreen(
                 }
                 ListItem(
                     headlineContent = { Text("Gỡ ở phía bạn", color = TextMain) },
-                    leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = null, tint = TextMain) },
+                    leadingContent = { Icon(Icons.Filled.Delete, contentDescription = null, tint = TextMain) },
                     modifier = Modifier.androidx.compose.foundation.clickable {
                         viewModel.deleteMessage(selectedMessage!!.id, forEveryone = false)
                         showSheet = false

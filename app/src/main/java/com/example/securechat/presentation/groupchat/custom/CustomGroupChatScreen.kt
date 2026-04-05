@@ -2,6 +2,10 @@ package com.example.securechat.presentation.groupchat.custom
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -99,7 +103,7 @@ fun CustomGroupChatScreen(
                 if (canRevoke && !selectedMessage!!.isDeletedForEveryone) {
                     ListItem(
                         headlineContent = { Text("Thu hồi", color = Color.Red) },
-                        leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = null, tint = Color.Red) },
+                        leadingContent = { Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.Red) },
                         modifier = Modifier.clickable {
                             viewModel.deleteMessage(selectedMessage!!.id, forEveryone = true)
                             showSheet = false
@@ -109,7 +113,7 @@ fun CustomGroupChatScreen(
                 }
                 ListItem(
                     headlineContent = { Text("Gỡ ở phía bạn", color = Color.White) },
-                    leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = null, tint = Color.White) },
+                    leadingContent = { Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.White) },
                     modifier = Modifier.clickable {
                         viewModel.deleteMessage(selectedMessage!!.id, forEveryone = false)
                         showSheet = false

@@ -11,9 +11,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -102,7 +106,7 @@ fun ChatScreen(
                 if (selectedMessage!!.isMine && !selectedMessage!!.isDeletedForEveryone) {
                     ListItem(
                         headlineContent = { Text("Thu hồi", color = Color.Red) },
-                        leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = null, tint = Color.Red) },
+                        leadingContent = { Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.Red) },
                         modifier = Modifier.androidx.compose.foundation.clickable {
                             viewModel.deleteMessage(selectedMessage!!.id, forEveryone = true)
                             showSheet = false
@@ -112,7 +116,7 @@ fun ChatScreen(
                 }
                 ListItem(
                     headlineContent = { Text("Gỡ ở phía bạn", color = Color.White) },
-                    leadingContent = { Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = null, tint = Color.White) },
+                        leadingContent = { Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.White) },
                     modifier = Modifier.androidx.compose.foundation.clickable {
                         viewModel.deleteMessage(selectedMessage!!.id, forEveryone = false)
                         showSheet = false
