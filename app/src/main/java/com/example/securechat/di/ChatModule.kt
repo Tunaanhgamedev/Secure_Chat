@@ -23,4 +23,10 @@ abstract class ChatModule {
     abstract fun bindCustomGroupRepository(
         impl: com.example.securechat.data.repository.CustomGroupRepositoryImpl
     ): com.example.securechat.domain.repository.CustomGroupRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFileStorageRepository(
+        impl: com.example.securechat.data.repository.FileStorageRepositoryImpl
+    ): com.example.securechat.domain.repository.FileStorageRepository
 }

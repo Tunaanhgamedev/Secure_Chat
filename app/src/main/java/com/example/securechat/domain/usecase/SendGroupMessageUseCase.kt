@@ -6,8 +6,8 @@ import javax.inject.Inject
 class SendGroupMessageUseCase @Inject constructor(
     private val repository: ChatRepository
 ) {
-    suspend operator fun invoke(content: String) {
-        if (content.isBlank()) return
-        repository.sendGroupMessage(content)
+    suspend operator fun invoke(content: String, fileUrl: String? = null, fileName: String? = null, fileType: String? = null) {
+        if (content.isBlank() && fileUrl == null) return
+        repository.sendGroupMessage(content, fileUrl, fileName, fileType)
     }
 }

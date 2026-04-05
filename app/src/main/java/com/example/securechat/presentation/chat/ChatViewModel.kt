@@ -13,11 +13,15 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.example.securechat.domain.repository.FileStorageRepository
+import android.net.Uri
+
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val getMessagesUseCase: GetMessagesUseCase,
     private val sendMessageUseCase: SendMessageUseCase,
     private val chatRepository: ChatRepository,
+    private val fileStorageRepository: FileStorageRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -64,6 +68,30 @@ class ChatViewModel @Inject constructor(
                 } else {
                     chatRepository.deleteMessageForMe(id, messageId, isGroup = false)
                 }
+            }
+        }
+    }
+
+    private val _isUploading = MutableStateFlow(false)
+    val isUploading: StateFlow<Boolean> = _isUploading
+
+    fun sendAttachment(uri: Uri, content: String, fileName: String, fileType: String) {
+        if (otherUserId == null) return
+        viewModelScope.launch {
+            _isUploading.value = true
+            val uploadResult = fileStorageRepository.uploadFile(uri, "attachments")
+            _isUploading.value = false
+            
+            uploadResult.onSuccess { url ->
+                sendMessageUseCase(
+                    otherUserId = otherUserId,
+                    content = content,
+                    fileUrl = url,
+                    fileName = fileName,
+                    fileType = fileType
+                )
+            }.onFailure {
+                // handle error if needed
             }
         }
     }

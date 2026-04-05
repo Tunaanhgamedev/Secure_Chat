@@ -12,5 +12,8 @@ data class MessageEntity(
     val isMine: Boolean,
     val chatId: String,
     val isDeletedForEveryone: Boolean = false,
-    val deletedByUsers: String = "" // Comma-separated UIDs
+    val deletedByUsers: String = "", // Comma-separated UIDs
+    val fileUrl: String? = null,
+    val fileName: String? = null,
+    val fileType: String? = null
 )

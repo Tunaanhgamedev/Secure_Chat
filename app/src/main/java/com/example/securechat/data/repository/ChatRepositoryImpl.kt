@@ -214,7 +214,10 @@ class ChatRepositoryImpl @Inject constructor(
                             isMine               = child.child("senderId").getValue(String::class.java) == myId,
                             chatId               = chatId,
                             isDeletedForEveryone = child.child("deletedForEveryone").getValue(Boolean::class.java) ?: false,
-                            deletedByUsers       = delUids
+                            deletedByUsers       = delUids,
+                            fileUrl              = child.child("fileUrl").getValue(String::class.java),
+                            fileName             = child.child("fileName").getValue(String::class.java),
+                            fileType             = child.child("fileType").getValue(String::class.java)
                         )
                     }
                     launch { messageDao.insertMessages(messages) }
@@ -231,19 +234,24 @@ class ChatRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun sendMessage(otherUserId: String, content: String) {
+    override suspend fun sendMessage(otherUserId: String, content: String, fileUrl: String?, fileName: String?, fileType: String?) {
         val myId   = auth.currentUser?.uid ?: return
         val myName = auth.currentUser?.displayName ?: auth.currentUser?.email ?: "Tôi"
         val chatId = chatId(myId, otherUserId)
         val msgId     = db.getReference("messages").child(chatId).push().key ?: return
         val timestamp = System.currentTimeMillis()
         
-        db.getReference("messages").child(chatId).child(msgId).setValue(mapOf(
+        val msgData = mutableMapOf<String, Any>(
             "senderId"   to myId,
             "senderName" to myName,
             "content"    to content,
             "timestamp"  to timestamp
-        )).await()
+        )
+        fileUrl?.let { msgData["fileUrl"] = it }
+        fileName?.let { msgData["fileName"] = it }
+        fileType?.let { msgData["fileType"] = it }
+
+        db.getReference("messages").child(chatId).child(msgId).setValue(msgData).await()
 
         val friendStatus = isFriend(otherUserId).first()
         val node = if (friendStatus) "conversations" else "message_requests"
@@ -270,7 +278,10 @@ class ChatRepositoryImpl @Inject constructor(
                             isMine               = child.child("senderId").getValue(String::class.java) == myId,
                             chatId               = chatId,
                             isDeletedForEveryone = child.child("deletedForEveryone").getValue(Boolean::class.java) ?: false,
-                            deletedByUsers       = delUids
+                            deletedByUsers       = delUids,
+                            fileUrl              = child.child("fileUrl").getValue(String::class.java),
+                            fileName             = child.child("fileName").getValue(String::class.java),
+                            fileType             = child.child("fileType").getValue(String::class.java)
                         )
                     }
                     launch { messageDao.insertMessages(messages) }
@@ -287,15 +298,21 @@ class ChatRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun sendGroupMessage(content: String) {
+    override suspend fun sendGroupMessage(content: String, fileUrl: String?, fileName: String?, fileType: String?) {
         val myId   = auth.currentUser?.uid ?: return
         val myName = auth.currentUser?.displayName ?: auth.currentUser?.email ?: "Ẩn danh"
-        db.getReference("group_messages").push().setValue(mapOf(
+        
+        val msgData = mutableMapOf<String, Any>(
             "senderId"   to myId,
             "senderName" to myName,
             "content"    to content,
             "timestamp"  to System.currentTimeMillis()
-        )).await()
+        )
+        fileUrl?.let { msgData["fileUrl"] = it }
+        fileName?.let { msgData["fileName"] = it }
+        fileType?.let { msgData["fileType"] = it }
+
+        db.getReference("group_messages").push().setValue(msgData).await()
     }
 
     private suspend fun updateConversationsSync(myId: String, otherUserId: String, content: String, ts: Long, node: String) {
@@ -321,7 +338,10 @@ class ChatRepositoryImpl @Inject constructor(
         timestamp            = timestamp, 
         isMine               = isMine,
         isDeletedForEveryone = isDeletedForEveryone,
-        deletedForUsers      = deletedByUsers.split(",").filter { it.isNotBlank() }.associateWith { true }
+        deletedForUsers      = deletedByUsers.split(",").filter { it.isNotBlank() }.associateWith { true },
+        fileUrl              = fileUrl,
+        fileName             = fileName,
+        fileType             = fileType
     )
     private fun chatId(a: String, b: String) = if (a < b) "${a}_$b" else "${b}_$a"
 

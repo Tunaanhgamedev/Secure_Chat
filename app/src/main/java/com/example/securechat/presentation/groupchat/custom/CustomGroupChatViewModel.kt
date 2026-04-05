@@ -13,10 +13,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.securechat.domain.repository.FileStorageRepository
+import android.net.Uri
 
 @HiltViewModel
 class CustomGroupChatViewModel @Inject constructor(
     private val groupRepository: CustomGroupRepository,
+    private val fileStorageRepository: FileStorageRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -48,6 +51,7 @@ class CustomGroupChatViewModel @Inject constructor(
         viewModelScope.launch {
             groupRepository.sendCustomGroupMessage(groupId, content.trim())
         }
+    }
     
     fun deleteMessage(messageId: String, forEveryone: Boolean) {
         viewModelScope.launch {
@@ -55,6 +59,29 @@ class CustomGroupChatViewModel @Inject constructor(
                 groupRepository.deleteMessageForEveryone(groupId, messageId)
             } else {
                 groupRepository.deleteMessageForMe(groupId, messageId)
+            }
+        }
+    }
+
+    private val _isUploading = MutableStateFlow(false)
+    val isUploading: StateFlow<Boolean> = _isUploading
+
+    fun sendAttachment(uri: Uri, content: String, fileName: String, fileType: String) {
+        viewModelScope.launch {
+            _isUploading.value = true
+            val uploadResult = fileStorageRepository.uploadFile(uri, "custom_group_attachments")
+            _isUploading.value = false
+            
+            uploadResult.onSuccess { url ->
+                groupRepository.sendCustomGroupMessage(
+                    groupId = groupId,
+                    content = content,
+                    fileUrl = url,
+                    fileName = fileName,
+                    fileType = fileType
+                )
+            }.onFailure {
+                // handle error
             }
         }
     }

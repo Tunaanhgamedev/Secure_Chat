@@ -10,9 +10,9 @@ interface ChatRepository {
     fun getFriends(): Flow<List<User>>
     fun getConversations(): Flow<List<Conversation>>
     fun getMessages(otherUserId: String): Flow<List<Message>>
-    suspend fun sendMessage(otherUserId: String, content: String)
+    suspend fun sendMessage(otherUserId: String, content: String, fileUrl: String? = null, fileName: String? = null, fileType: String? = null)
     fun getGroupMessages(): Flow<List<Message>>
-    suspend fun sendGroupMessage(content: String)
+    suspend fun sendGroupMessage(content: String, fileUrl: String? = null, fileName: String? = null, fileType: String? = null)
     
     // Pro Features (Version 2.0)
     fun getFriendRequests(): Flow<List<User>>

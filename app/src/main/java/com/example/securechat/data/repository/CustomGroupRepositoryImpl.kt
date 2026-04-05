@@ -234,7 +234,10 @@ class CustomGroupRepositoryImpl @Inject constructor() : CustomGroupRepository {
                         timestamp = child.child("timestamp").getValue(Long::class.java) ?: 0L,
                         isMine = senderId == myUid,
                         isDeletedForEveryone = isDeleted,
-                        deletedForUsers = delMap?.keys?.filterIsInstance<String>()?.associateWith { true } ?: emptyMap()
+                        deletedForUsers = delMap?.keys?.filterIsInstance<String>()?.associateWith { true } ?: emptyMap(),
+                        fileUrl = child.child("fileUrl").getValue(String::class.java),
+                        fileName = child.child("fileName").getValue(String::class.java),
+                        fileType = child.child("fileType").getValue(String::class.java)
                     )
                 }
                 trySend(msgs)
@@ -246,19 +249,22 @@ class CustomGroupRepositoryImpl @Inject constructor() : CustomGroupRepository {
         awaitClose { ref.removeEventListener(listener) }
     }
 
-    override suspend fun sendCustomGroupMessage(groupId: String, content: String): Result<Unit> {
+    override suspend fun sendCustomGroupMessage(groupId: String, content: String, fileUrl: String?, fileName: String?, fileType: String?): Result<Unit> {
         return try {
             val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
             val userSnap = db.getReference("users").child(myUid).get().await()
             val myName = userSnap.child("username").getValue(String::class.java) ?: "User"
 
             val messageId = messagesRef.child(groupId).push().key ?: UUID.randomUUID().toString()
-            val msgData = mapOf(
+            val msgData = mutableMapOf<String, Any>(
                 "senderId" to myUid,
                 "senderName" to myName,
                 "content" to content,
                 "timestamp" to System.currentTimeMillis()
             )
+            fileUrl?.let { msgData["fileUrl"] = it }
+            fileName?.let { msgData["fileName"] = it }
+            fileType?.let { msgData["fileType"] = it }
             
             // Save message
             messagesRef.child(groupId).child(messageId).setValue(msgData).await()

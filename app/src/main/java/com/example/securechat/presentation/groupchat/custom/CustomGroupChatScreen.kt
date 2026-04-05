@@ -8,10 +8,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import coil.compose.AsyncImage
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +48,28 @@ fun CustomGroupChatScreen(
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val isUploading by viewModel.isUploading.collectAsState()
+    val context = LocalContext.current
+
+    val getFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            val contentResolver = context.contentResolver
+            val mimeType = contentResolver.getType(uri) ?: "application/octet-stream"
+            
+            var fileName = "attachment"
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst() && nameIndex != -1) {
+                    fileName = cursor.getString(nameIndex)
+                }
+            }
+
+            viewModel.sendAttachment(uri, "Tệp đính kèm: $fileName", fileName, mimeType)
+            coroutineScope.launch {
+                if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+            }
+        }
+    }
 
     // Selection State
     var selectedMessage by remember { mutableStateOf<Message?>(null) }
@@ -123,6 +150,9 @@ fun CustomGroupChatScreen(
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(onClick = { getFileLauncher.launch("*/*") }) {
+                    Icon(Icons.Default.AttachFile, contentDescription = "Gửi tệp", tint = SecondaryText)
+                }
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
@@ -141,19 +171,24 @@ fun CustomGroupChatScreen(
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(8.dp))
-                IconButton(
-                    onClick = {
-                        if (inputText.isNotBlank()) {
-                            viewModel.sendMessage(inputText)
-                            inputText = ""
-                            coroutineScope.launch {
-                                if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+                if (isUploading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MessengerBlue)
+                    Spacer(Modifier.width(12.dp))
+                } else {
+                    IconButton(
+                        onClick = {
+                            if (inputText.isNotBlank()) {
+                                viewModel.sendMessage(inputText)
+                                inputText = ""
+                                coroutineScope.launch {
+                                    if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+                                }
                             }
-                        }
-                    },
-                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(50)).background(MessengerBlue)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Gửi", tint = Color.White)
+                        },
+                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(50)).background(MessengerBlue)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Gửi", tint = Color.White)
+                    }
                 }
             }
         }
@@ -209,14 +244,33 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                     .padding(horizontal = 14.dp, vertical = 10.dp)
                     .widthIn(max = 260.dp)
             ) {
-                Text(
-                    text = msg.content, 
-                    color = textColor, 
-                    fontSize = 15.sp,
-                    style = if (msg.isDeletedForEveryone) androidx.compose.ui.text.TextStyle(
-                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                    ) else androidx.compose.ui.text.TextStyle.Default
-                )
+                Column {
+                    if (!msg.isDeletedForEveryone && msg.fileUrl != null) {
+                        if (msg.fileType?.startsWith("image/") == true) {
+                            AsyncImage(
+                                model = msg.fileUrl,
+                                contentDescription = msg.fileName,
+                                modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp).clip(RoundedCornerShape(8.dp))
+                            )
+                            Spacer(Modifier.height(4.dp))
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(8.dp)) {
+                                Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Color.White)
+                                Spacer(Modifier.width(8.dp))
+                                Text(msg.fileName ?: "Tệp", color = Color.White, fontSize = 12.sp, maxLines = 1)
+                            }
+                            Spacer(Modifier.height(4.dp))
+                        }
+                    }
+                    Text(
+                        text = msg.content, 
+                        color = textColor, 
+                        fontSize = 15.sp,
+                        style = if (msg.isDeletedForEveryone) androidx.compose.ui.text.TextStyle(
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                        ) else androidx.compose.ui.text.TextStyle.Default
+                    )
+                }
             }
         }
     } else {
@@ -241,14 +295,33 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                         .widthIn(max = 260.dp)
                 ) {
-                    Text(
-                        text = msg.content, 
-                        color = textColor, 
-                        fontSize = 15.sp,
-                        style = if (msg.isDeletedForEveryone) androidx.compose.ui.text.TextStyle(
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                        ) else androidx.compose.ui.text.TextStyle.Default
-                    )
+                    Column {
+                        if (!msg.isDeletedForEveryone && msg.fileUrl != null) {
+                            if (msg.fileType?.startsWith("image/") == true) {
+                                AsyncImage(
+                                    model = msg.fileUrl,
+                                    contentDescription = msg.fileName,
+                                    modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp).clip(RoundedCornerShape(8.dp))
+                                )
+                                Spacer(Modifier.height(4.dp))
+                            } else {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(8.dp)) {
+                                    Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Color.White)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(msg.fileName ?: "Tệp", color = Color.White, fontSize = 12.sp, maxLines = 1)
+                                }
+                                Spacer(Modifier.height(4.dp))
+                            }
+                        }
+                        Text(
+                            text = msg.content, 
+                            color = textColor, 
+                            fontSize = 15.sp,
+                            style = if (msg.isDeletedForEveryone) androidx.compose.ui.text.TextStyle(
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                            ) else androidx.compose.ui.text.TextStyle.Default
+                        )
+                    }
                 }
             }
         }

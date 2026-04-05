@@ -16,7 +16,7 @@ interface CustomGroupRepository {
     suspend fun leaveGroup(groupId: String): Result<Unit>
     
     fun getCustomGroupMessages(groupId: String): Flow<List<com.example.securechat.domain.model.Message>>
-    suspend fun sendCustomGroupMessage(groupId: String, content: String): Result<Unit>
+    suspend fun sendCustomGroupMessage(groupId: String, content: String, fileUrl: String? = null, fileName: String? = null, fileType: String? = null): Result<Unit>
     
     // Deletion
     suspend fun deleteMessageForMe(groupId: String, messageId: String): Result<Unit>
