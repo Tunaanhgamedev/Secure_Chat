@@ -72,14 +72,6 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun sendFriendRequest() {
-        otherUserId?.let { id ->
-            viewModelScope.launch {
-                chatRepository.sendFriendRequest(id)
-            }
-        }
-    }
-
     private val _isUploading = MutableStateFlow(false)
     val isUploading: StateFlow<Boolean> = _isUploading
 
@@ -100,6 +92,14 @@ class ChatViewModel @Inject constructor(
                 )
             }.onFailure {
                 // handle error if needed
+            }
+        }
+    }
+
+    fun sendFriendRequest() {
+        otherUserId?.let { id ->
+            viewModelScope.launch {
+                chatRepository.sendFriendRequest(id)
             }
         }
     }
