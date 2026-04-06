@@ -1,4 +1,4 @@
-0: Starting a Gradle Daemon, 2 incompatible and 5 stopped Daemons could not be reused, use --status for details
+0: Starting a Gradle Daemon, 2 incompatible and 8 stopped Daemons could not be reused, use --status for details
 1: > Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
 2: > Task :app:preBuild UP-TO-DATE
 3: > Task :app:preDebugBuild UP-TO-DATE
@@ -19,7 +19,24 @@
 18: > Task :app:processDebugManifestForPackage
 19: > Task :app:processDebugResources
 20: > Task :app:kspDebugKotlin
-21: > Task :app:compileDebugKotlin
-22: 
-23: BUILD SUCCESSFUL in 1m 29s
-24: 18 actionable tasks: 6 executed, 12 up-to-date
+21: 
+22: > Task :app:compileDebugKotlin
+23: 
+24: > Task :app:compileDebugKotlin FAILED
+25: 18 actionable tasks: 6 executed, 12 up-to-date
+26: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/data/remote/WebRtcClient.kt:68:56 Unresolved reference 'MAX_BUNDLE'.
+27: 
+28: FAILURE: Build failed with an exception.
+29: 
+30: * What went wrong:
+31: Execution failed for task ':app:compileDebugKotlin'.
+32: > A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+33:    > Compilation error. See log for more details
+34: 
+35: * Try:
+36: > Run with --stacktrace option to get the stack trace.
+37: > Run with --info or --debug option to get more log output.
+38: > Run with --scan to get full insights.
+39: > Get more help at https://help.gradle.org.
+40: 
+41: BUILD FAILED in 1m 43s

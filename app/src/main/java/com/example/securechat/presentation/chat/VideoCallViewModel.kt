@@ -158,8 +158,9 @@ class VideoCallViewModel @Inject constructor(
         val constraints = webRtcClient.getOfferConstraints()
         peerConnection?.createOffer(object : SdpObserver {
             override fun onCreateSuccess(sdp: SessionDescription) {
-                peerConnection?.setLocalDescription(this, sdp)
-                webRtcClient.sendOffer(callId, sdp.description)
+                val mangledSdp = SessionDescription(sdp.type, preferCodec(sdp.description, "VP8"))
+                peerConnection?.setLocalDescription(this, mangledSdp)
+                webRtcClient.sendOffer(callId, mangledSdp.description)
                 listenForAnswer()
             }
             override fun onSetSuccess() {}
@@ -192,8 +193,9 @@ class VideoCallViewModel @Inject constructor(
         }
         peerConnection?.createAnswer(object : SdpObserver {
                 override fun onCreateSuccess(sdp: SessionDescription) {
-                    peerConnection?.setLocalDescription(this, sdp)
-                    webRtcClient.sendAnswer(callId, sdp.description)
+                    val mangledSdp = SessionDescription(sdp.type, preferCodec(sdp.description, "VP8"))
+                    peerConnection?.setLocalDescription(this, mangledSdp)
+                    webRtcClient.sendAnswer(callId, mangledSdp.description)
                     // Transition to CONNECTED immediately after signaling success.
                     // This moves the UI from RINGING to the Video screen.
                     _callState.value = CallState.CONNECTED
@@ -260,6 +262,37 @@ class VideoCallViewModel @Inject constructor(
     }
 
     fun getLocalVideoTrack(): VideoTrack = webRtcClient.getLocalVideoTrack()
+
+    private fun preferCodec(sdp: String, codec: String): String {
+        val lines = sdp.split("\r\n")
+        val mLineIndex = lines.indexOfFirst { it.startsWith("m=video") }
+        if (mLineIndex == -1) return sdp
+
+        val mLine = lines[mLineIndex]
+        val parts = mLine.split(" ").toMutableList()
+        if (parts.size < 4) return sdp
+
+        // Find the payload type of the target codec (e.g., VP8)
+        val codecLines = lines.filter { it.contains("a=rtpmap") && it.contains(codec, ignoreCase = true) }
+        val payloads = codecLines.mapNotNull { line ->
+            val match = "a=rtpmap:(\\d+)".toRegex().find(line)
+            match?.groupValues?.get(1)
+        }
+
+        if (payloads.isEmpty()) return sdp
+
+        // Remove the targets from the list and re-insert them at the front of the codec list
+        val remainingParts = parts.subList(3, parts.size).toMutableList()
+        payloads.forEach { payload ->
+            remainingParts.remove(payload)
+        }
+        val reorderedParts = parts.subList(0, 3) + payloads + remainingParts
+        
+        val newMLine = reorderedParts.joinToString(" ")
+        val newLines = lines.toMutableList()
+        newLines[mLineIndex] = newMLine
+        return newLines.joinToString("\r\n")
+    }
 
     override fun onCleared() {
         super.onCleared()

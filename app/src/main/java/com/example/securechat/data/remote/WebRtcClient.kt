@@ -63,6 +63,10 @@ class WebRtcClient @Inject constructor(
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
             continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
             iceTransportsType = PeerConnection.IceTransportsType.ALL
+            
+            // Aggressive bundling to save ports and speed up connection on 4G
+            bundlePolicy = PeerConnection.BundlePolicy.MAX_BUNDLE
+            rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE
         }
         return peerConnectionFactory.createPeerConnection(rtcConfig, observer)
     }
