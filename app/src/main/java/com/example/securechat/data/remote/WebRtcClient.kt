@@ -21,8 +21,8 @@ class WebRtcClient @Inject constructor(
         )
     }
 
-    private val eglBase = EglBase.create()
-    val eglBaseContext: EglBase.Context = eglBase.eglBaseContext
+    private val eglBase by lazy { EglBase.create() }
+    val eglBaseContext: EglBase.Context get() = eglBase.eglBaseContext
 
     private val peerConnectionFactory by lazy {
         val decoderFactory = DefaultVideoDecoderFactory(eglBaseContext)
@@ -92,25 +92,31 @@ class WebRtcClient @Inject constructor(
         }
         
         // Audio Management (Professional routing)
-        if (audioManager == null) {
-            audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            audioManager?.apply {
-                mode = android.media.AudioManager.MODE_IN_COMMUNICATION
-                isSpeakerphoneOn = true // Default to speaker for video calls
-                
-                // Request audio focus for the call
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    val focusRequest = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-                        .setAudioAttributes(android.media.AudioAttributes.Builder()
-                            .setUsage(android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
-                            .build())
-                        .build()
-                    requestAudioFocus(focusRequest)
-                } else {
-                    requestAudioFocus(null, android.media.AudioManager.STREAM_VOICE_CALL, android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+        try {
+            if (audioManager == null) {
+                audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                audioManager?.apply {
+                    mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+                    isSpeakerphoneOn = true // Default to speaker for video calls
+                    
+                    // Request audio focus for the call
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        val focusRequest = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                            .setAudioAttributes(android.media.AudioAttributes.Builder()
+                                .setUsage(android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                                .build())
+                            .build()
+                        requestAudioFocus(focusRequest)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        requestAudioFocus(null, android.media.AudioManager.STREAM_VOICE_CALL, android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                    }
                 }
             }
+        } catch (e: Exception) {
+            // Log and continue - audio might be degraded but app stays alive
+            e.printStackTrace()
         }
     }
 

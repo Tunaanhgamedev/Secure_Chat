@@ -174,8 +174,9 @@ fun SecureChatNavGraph(
                 navArgument("peerName")   { type = NavType.StringType; defaultValue = "" },
                 navArgument("isIncoming") { type = NavType.BoolType; defaultValue = false }
             )
-        ) {
+        ) { backStackEntry ->
             VideoCallScreen(
+                viewModel = hiltViewModel(backStackEntry),
                 onEndCall = { navController.popBackStack() }
             )
         }
