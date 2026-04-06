@@ -109,37 +109,39 @@ class VideoCallViewModel @Inject constructor(
     private var offerCreated = false  // guard: ensure createOffer runs exactly once
 
     init {
-        webRtcClient.startLocalCapture()
-        initPeerConnection()
-        
-        // Start Audio Feedback
-        if (isIncoming) {
-            playRingtone()
-        } else {
-            playDialingTone()
-        }
+        viewModelScope.launch {
+            try {
+                webRtcClient.startLocalCapture()
+                initPeerConnection()
 
-        if (isIncoming) {
-            // NOTE: respondToCall("accepted") was already called by CallManagerViewModel.
-            // Do NOT call it again here. Just listen for the offer from the caller.
-            listenForOffer()
-        } else {
-            viewModelScope.launch {
-                val currentUser = FirebaseAuth.getInstance().currentUser
-                val photoUrl = currentUser?.photoUrl?.toString()
-                val myName = currentUser?.displayName
-                    ?: currentUser?.email?.substringBefore('@')
-                    ?: "Unknown"
-                chatRepository.startCall(targetUserId, myName, photoUrl)
-            }
-            // Listen for receiver's "accepted" — create offer exactly once
-            viewModelScope.launch {
-                chatRepository.listenForCallStatus(targetUserId).collect { status ->
-                    if (!offerCreated && status == "accepted") {
-                        offerCreated = true
-                        createOffer()
+                // Start Audio Feedback
+                if (isIncoming) {
+                    playRingtone()
+                } else {
+                    playDialingTone()
+                }
+
+                if (isIncoming) {
+                    // NOTE: respondToCall("accepted") was already called by CallManagerViewModel.
+                    // Do NOT call it again here. Just listen for the offer from the caller.
+                    listenForOffer()
+                } else {
+                    val currentUser = FirebaseAuth.getInstance().currentUser
+                    val photoUrl = currentUser?.photoUrl?.toString()
+                    val myName = currentUser?.displayName
+                        ?: currentUser?.email?.substringBefore('@')
+                        ?: "Unknown"
+                    chatRepository.startCall(targetUserId, myName, photoUrl)
+                    // Listen for receiver's "accepted" — create offer exactly once
+                    chatRepository.listenForCallStatus(targetUserId).collect { status ->
+                        if (!offerCreated && status == "accepted") {
+                            offerCreated = true
+                            createOffer()
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                _networkMessage.value = "Lỗi khởi tạo: ${e.message}"
             }
         }
 
@@ -295,11 +297,15 @@ class VideoCallViewModel @Inject constructor(
     private fun playRingtone() {
         try {
             val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            mediaPlayer = MediaPlayer.create(context, notification)
-            mediaPlayer?.isLooping = true
-            mediaPlayer?.start()
+            if (notification != null) {
+                mediaPlayer = MediaPlayer.create(context, notification)
+                mediaPlayer?.isLooping = true
+                mediaPlayer?.start()
+            } else {
+                playRingtoneSound() // Fallback to system tone if URI is missing
+            }
         } catch (e: Exception) {
-            // Fallback to tone if media player fails
+            // Fallback to tone if media player fails (safeguard against crash)
             playRingtoneSound()
         }
     }

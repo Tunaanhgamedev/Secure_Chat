@@ -132,6 +132,8 @@ class WebRtcClient @Inject constructor(
     private fun getVideoCapturer(context: Context): CameraVideoCapturer? {
         val enumerator = Camera2Enumerator(context)
         val deviceNames = enumerator.deviceNames
+        if (deviceNames.isNullOrEmpty()) return null // Guard against no cameras
+        
         for (deviceName in deviceNames) {
             if (enumerator.isFrontFacing(deviceName)) {
                 return enumerator.createCapturer(deviceName, null)
