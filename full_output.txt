@@ -1,72 +1,28 @@
-0: Starting a Gradle Daemon, 1 incompatible and 28 stopped Daemons could not be reused, use --status for details
-1: > Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
-2: > Task :app:preBuild UP-TO-DATE
-3: > Task :app:preDebugBuild UP-TO-DATE
-4: > Task :app:checkDebugAarMetadata UP-TO-DATE
-5: > Task :app:processDebugNavigationResources UP-TO-DATE
-6: > Task :app:compileDebugNavigationResources UP-TO-DATE
-7: > Task :app:generateDebugResValues UP-TO-DATE
-8: > Task :app:processDebugGoogleServices UP-TO-DATE
-9: > Task :app:mapDebugSourceSetPaths UP-TO-DATE
-10: > Task :app:generateDebugResources UP-TO-DATE
-11: > Task :app:mergeDebugResources UP-TO-DATE
-12: > Task :app:packageDebugResources UP-TO-DATE
-13: > Task :app:parseDebugLocalResources UP-TO-DATE
-14: > Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
-15: > Task :app:extractDeepLinksDebug UP-TO-DATE
-16: > Task :app:processDebugMainManifest
-17: > Task :app:processDebugManifest
-18: > Task :app:processDebugManifestForPackage
-19: > Task :app:processDebugResources
-20: > Task :app:kspDebugKotlin
-21: > Task :app:compileDebugKotlin
-22: 
-23: > Task :app:compileDebugKotlin FAILED
-24: 18 actionable tasks: 6 executed, 12 up-to-date
-25: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/ChatScreen.kt:207:40 Unresolved reference 'AttachFile'.
-26: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/ChatScreen.kt:259:44 Unresolved reference 'PersonAdd'.
-27: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:34:16 Unresolved reference 'VideoCallViewModel'.
-28: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:34:37 Cannot infer type for this parameter. Please specify it explicitly.
-29: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:37:22 Cannot infer type for this parameter. Please specify it explicitly.
-30: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:37:22 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
-31: fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
-32: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:37:32 Unresolved reference 'callState'.
-33: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:37:42 Cannot infer type for this parameter. Please specify it explicitly.
-34: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:38:24 Cannot infer type for this parameter. Please specify it explicitly.
-35: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:38:24 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
-36: fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
-37: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:38:34 Unresolved reference 'remoteVideoTrack'.
-38: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:38:51 Cannot infer type for this parameter. Please specify it explicitly.
-39: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:39:27 Cannot infer type for this parameter. Please specify it explicitly.
-40: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:39:27 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
-41: fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
-42: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:39:37 Unresolved reference 'networkMessage'.
-43: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:39:52 Cannot infer type for this parameter. Please specify it explicitly.
-44: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:50:37 Unresolved reference 'peerName'.
-45: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:50:57 Unresolved reference 'eglContext'.
-46: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:53:48 Unresolved reference 'eglContext'.
-47: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:59:25 Cannot infer type for this parameter. Please specify it explicitly.
-48: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:59:25 Not enough information to infer type argument for 'T'.
-49: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:59:25 Not enough information to infer type argument for 'R'.
-50: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:59:31 Cannot infer type for this parameter. Please specify it explicitly.
-51: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:83:37 Unresolved reference 'endCall'.
-52: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:84:42 Unresolved reference 'switchCamera'.
-53: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:90:69 Unresolved reference 'VideoCallViewModel'.
-54: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:112:27 Unresolved reference 'getLocalVideoTrack'.
-55: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:144:79 Unresolved reference 'VideoCallViewModel'.
-56: e: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/presentation/chat/VideoCallScreen.kt:177:31 Unresolved reference 'getLocalVideoTrack'.
-57: 
-58: FAILURE: Build failed with an exception.
-59: 
-60: * What went wrong:
-61: Execution failed for task ':app:compileDebugKotlin'.
-62: > A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
-63:    > Compilation error. See log for more details
-64: 
-65: * Try:
-66: > Run with --stacktrace option to get the stack trace.
-67: > Run with --info or --debug option to get more log output.
-68: > Run with --scan to get full insights.
-69: > Get more help at https://help.gradle.org.
-70: 
-71: BUILD FAILED in 4m 38s
+0: > Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+1: > Task :app:preBuild UP-TO-DATE
+2: > Task :app:preDebugBuild UP-TO-DATE
+3: > Task :app:checkDebugAarMetadata UP-TO-DATE
+4: > Task :app:processDebugNavigationResources UP-TO-DATE
+5: > Task :app:compileDebugNavigationResources UP-TO-DATE
+6: > Task :app:generateDebugResValues UP-TO-DATE
+7: > Task :app:processDebugGoogleServices UP-TO-DATE
+8: > Task :app:mapDebugSourceSetPaths UP-TO-DATE
+9: > Task :app:generateDebugResources UP-TO-DATE
+10: > Task :app:mergeDebugResources UP-TO-DATE
+11: > Task :app:packageDebugResources UP-TO-DATE
+12: > Task :app:parseDebugLocalResources UP-TO-DATE
+13: > Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+14: > Task :app:extractDeepLinksDebug UP-TO-DATE
+15: > Task :app:processDebugMainManifest
+16: > Task :app:processDebugManifest
+17: > Task :app:processDebugManifestForPackage
+18: > Task :app:processDebugResources
+19: > Task :app:kspDebugKotlin
+20: > Task :app:compileDebugKotlin
+21: w: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/data/remote/WebRtcClient.kt:99:17 'var isSpeakerphoneOn: Boolean' is deprecated. Deprecated in Java.
+22: w: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/data/remote/WebRtcClient.kt:111:21 'fun requestAudioFocus(p0: AudioManager.OnAudioFocusChangeListener!, p1: Int, p2: Int): Int' is deprecated. Deprecated in Java.
+23: w: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/data/remote/WebRtcClient.kt:153:23 'var isSpeakerphoneOn: Boolean' is deprecated. Deprecated in Java.
+24: w: file:///E:/adr_hoc/SecureChat/app/src/main/java/com/example/securechat/data/repository/AuthRepositoryImpl.kt:213:14 'fun updateEmail(p0: String): Task<Void!>' is deprecated. Deprecated in Java.
+25: 
+26: BUILD SUCCESSFUL in 6m 41s
+27: 18 actionable tasks: 6 executed, 12 up-to-date

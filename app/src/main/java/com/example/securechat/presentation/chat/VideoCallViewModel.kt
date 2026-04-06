@@ -1,3 +1,5 @@
+package com.example.securechat.presentation.chat
+
 import android.content.Context
 import android.media.AudioManager
 import android.media.MediaPlayer
@@ -157,13 +159,22 @@ class VideoCallViewModel @Inject constructor(
         try {
             peerConnection = webRtcClient.createPeerConnection(pcObserver)
             
+            // Following reference repo: Create a local stream and add tracks to it
+            val localStream = webRtcClient.createLocalStream(WebRtcClient.STREAM_ID)
+            
             val videoTrack = webRtcClient.getLocalVideoTrack()
             videoTrack.setEnabled(true)
-            // Use addTrack for UNIFIED_PLAN compatibility, but with streamId
-            peerConnection?.addTrack(videoTrack, listOf(WebRtcClient.STREAM_ID))
+            localStream.addTrack(videoTrack)
             
             val audioTrack = webRtcClient.getLocalAudioTrack()
             audioTrack.setEnabled(true)
+            localStream.addTrack(audioTrack)
+
+            // Add the whole stream for maximum compatibility
+            peerConnection?.addStream(localStream)
+            
+            // Also use addTrack for modern Unified Plan support
+            peerConnection?.addTrack(videoTrack, listOf(WebRtcClient.STREAM_ID))
             peerConnection?.addTrack(audioTrack, listOf(WebRtcClient.STREAM_ID))
         } catch (e: Exception) {
             _networkMessage.value = "Lỗi khởi tạo cuộc gọi: ${e.message}"

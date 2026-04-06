@@ -57,11 +57,10 @@ class WebRtcClient @Inject constructor(
             PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
             PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer(),
             PeerConnection.IceServer.builder("stun:stun2.l.google.com:19302").createIceServer(),
-            PeerConnection.IceServer.builder("stun:stun3.l.google.com:19302").createIceServer(),
-            PeerConnection.IceServer.builder("stun:stun4.l.google.com:19302").createIceServer(),
-            PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer(),
-            PeerConnection.IceServer.builder("stun:stun.services.mozilla.com").createIceServer(),
-            PeerConnection.IceServer.builder("stun:stun.stunprotocol.org:3478").createIceServer()
+            // Add the TURN server from the reference repo for NAT traversal
+            PeerConnection.IceServer.builder("turn:a.relay.metered.ca:443?transport=tcp")
+                .setUsername("83eebabf8b4cce9d5dbcb649")
+                .setPassword("2D7JvfkOQtBdYW3R").createIceServer()
         )
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
@@ -88,7 +87,7 @@ class WebRtcClient @Inject constructor(
             videoCapturer = getVideoCapturer(context)
             val helper = SurfaceTextureHelper.create("CaptureThread", eglBaseContext)
             videoCapturer?.initialize(helper, context, localVideoSource.capturerObserver)
-            videoCapturer?.startCapture(1280, 720, 30) // Use HD for better experience
+            videoCapturer?.startCapture(640, 480, 30) // Use stable 480p resolution like reference
         }
         
         // Audio Management (Professional routing)
