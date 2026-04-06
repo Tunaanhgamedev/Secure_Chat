@@ -11,19 +11,20 @@ class WebRtcClient @Inject constructor(
     @ApplicationContext private val context: Context,
     private val signalingClient: FirebaseSignalingClient
 ) {
-    private val eglBase = EglBase.create()
-    val eglBaseContext: EglBase.Context = eglBase.eglBaseContext
-
-    private val peerConnectionFactory by lazy {
+    init {
+        // Essential: Initialize PeerConnectionFactory before creating any WebRTC objects (like EglBase)
         PeerConnectionFactory.initialize(
             PeerConnectionFactory.InitializationOptions.builder(context)
                 .setEnableInternalTracer(true)
                 .setFieldTrials("WebRTC-H264HighProfile/Enabled/")
                 .createInitializationOptions()
         )
-        
-        // Use software decoding as the "bomb-proof" fallback for Xiaomi/4G
-        // while aligning with the Options structure from the reference.
+    }
+
+    private val eglBase = EglBase.create()
+    val eglBaseContext: EglBase.Context = eglBase.eglBaseContext
+
+    private val peerConnectionFactory by lazy {
         val decoderFactory = SoftwareVideoDecoderFactory()
         val encoderFactory = SoftwareVideoEncoderFactory()
         

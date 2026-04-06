@@ -111,6 +111,8 @@ class VideoCallViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             try {
+                // Ensure native side is ready
+                kotlinx.coroutines.delay(100) 
                 webRtcClient.startLocalCapture()
                 initPeerConnection()
 
