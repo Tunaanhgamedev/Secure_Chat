@@ -25,8 +25,8 @@ class WebRtcClient @Inject constructor(
     val eglBaseContext: EglBase.Context = eglBase.eglBaseContext
 
     private val peerConnectionFactory by lazy {
-        val decoderFactory = SoftwareVideoDecoderFactory()
-        val encoderFactory = SoftwareVideoEncoderFactory()
+        val decoderFactory = DefaultVideoDecoderFactory(eglBaseContext)
+        val encoderFactory = DefaultVideoEncoderFactory(eglBaseContext, true, true)
         
         PeerConnectionFactory.builder()
             .setVideoDecoderFactory(decoderFactory)

@@ -159,8 +159,10 @@ fun SecureChatNavGraph(
                 peerName         = peerName,
                 onNavigateBack   = { navController.popBackStack() },
                 onNavigateToCall = { 
-                    val encodedName = Uri.encode(peerName)
-                    navController.navigate("call/$userId?peerName=$encodedName&isIncoming=false") 
+                    if (userId.isNotEmpty()) {
+                        val encodedName = Uri.encode(peerName)
+                        navController.navigate("call/$userId?peerName=$encodedName&isIncoming=false") 
+                    }
                 }
             )
         }
