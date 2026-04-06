@@ -20,9 +20,14 @@ class WebRtcClient @Inject constructor(
                 .setEnableInternalTracer(true)
                 .createInitializationOptions()
         )
+        
+        // Default decoder is safer and includes software fallback automatically
+        val decoderFactory = DefaultVideoDecoderFactory(eglBaseContext)
+        val encoderFactory = DefaultVideoEncoderFactory(eglBaseContext, true, true)
+        
         PeerConnectionFactory.builder()
-            .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglBaseContext))
-            .setVideoEncoderFactory(DefaultVideoEncoderFactory(eglBaseContext, true, true))
+            .setVideoDecoderFactory(decoderFactory)
+            .setVideoEncoderFactory(encoderFactory)
             .setOptions(PeerConnectionFactory.Options().apply {
                 disableEncryption = false
                 disableNetworkMonitor = false
@@ -139,4 +144,12 @@ class WebRtcClient @Inject constructor(
     fun listenForAnswer(callId: String) = signalingClient.listenForAnswer(callId)
     fun listenForOffer(callId: String)  = signalingClient.listenForOffer(callId)
     fun listenForIceCandidates(callId: String, isCaller: Boolean) = signalingClient.listenForIceCandidates(callId, isCaller)
+
+    fun createLocalStream(streamId: String): MediaStream {
+        return peerConnectionFactory.createLocalMediaStream(streamId)
+    }
+
+    companion object {
+        const val STREAM_ID = "ARDAMS"
+    }
 }

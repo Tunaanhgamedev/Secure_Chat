@@ -37,19 +37,31 @@ class VideoCallViewModel @Inject constructor(
     private val _remoteVideoTrack = MutableStateFlow<VideoTrack?>(null)
     val remoteVideoTrack: StateFlow<VideoTrack?> = _remoteVideoTrack
 
+    private val _networkMessage = MutableStateFlow<String?>(null)
+    val networkMessage: StateFlow<String?> = _networkMessage
+
     private val pcObserver = object : PeerConnection.Observer {
         override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
         override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
-            when (state) {
-                PeerConnection.IceConnectionState.CONNECTED,
-                PeerConnection.IceConnectionState.COMPLETED -> {
-                    _callState.value = CallState.CONNECTED
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                when (state) {
+                    PeerConnection.IceConnectionState.CONNECTED,
+                    PeerConnection.IceConnectionState.COMPLETED -> {
+                        _callState.value = CallState.CONNECTED
+                        _networkMessage.value = null
+                    }
+                    PeerConnection.IceConnectionState.DISCONNECTED -> {
+                        _networkMessage.value = "Mạng yếu, đang thử lại..."
+                    }
+                    PeerConnection.IceConnectionState.FAILED -> {
+                        _networkMessage.value = "Kết nối thất bại"
+                        endCall()
+                    }
+                    PeerConnection.IceConnectionState.CHECKING -> {
+                        _networkMessage.value = "Đang kết nối..."
+                    }
+                    else -> {}
                 }
-                PeerConnection.IceConnectionState.FAILED -> {
-                    // Only end on FAILED — DISCONNECTED is transient and may recover
-                    endCall()
-                }
-                else -> {}
             }
         }
         override fun onIceConnectionReceivingChange(p0: Boolean) {}
@@ -126,15 +138,20 @@ class VideoCallViewModel @Inject constructor(
     }
 
     private fun initPeerConnection() {
-        peerConnection = webRtcClient.createPeerConnection(pcObserver)
-        
-        val videoTrack = webRtcClient.getLocalVideoTrack()
-        videoTrack.setEnabled(true)
-        peerConnection?.addTrack(videoTrack)
-        
-        val audioTrack = webRtcClient.getLocalAudioTrack()
-        audioTrack.setEnabled(true)
-        peerConnection?.addTrack(audioTrack)
+        try {
+            peerConnection = webRtcClient.createPeerConnection(pcObserver)
+            
+            val videoTrack = webRtcClient.getLocalVideoTrack()
+            videoTrack.setEnabled(true)
+            // Use addTrack for UNIFIED_PLAN compatibility, but with streamId
+            peerConnection?.addTrack(videoTrack, listOf(WebRtcClient.STREAM_ID))
+            
+            val audioTrack = webRtcClient.getLocalAudioTrack()
+            audioTrack.setEnabled(true)
+            peerConnection?.addTrack(audioTrack, listOf(WebRtcClient.STREAM_ID))
+        } catch (e: Exception) {
+            _networkMessage.value = "Lỗi khởi tạo cuộc gọi: ${e.message}"
+        }
     }
 
     private fun createOffer() {
@@ -174,13 +191,13 @@ class VideoCallViewModel @Inject constructor(
             mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
         }
         peerConnection?.createAnswer(object : SdpObserver {
-            override fun onCreateSuccess(sdp: SessionDescription) {
-                peerConnection?.setLocalDescription(this, sdp)
-                webRtcClient.sendAnswer(callId, sdp.description)
-                // Transition to CONNECTED immediately after SDP exchange for UI feedback.
-                // ICE will handle actual media delivery when it connects.
-                _callState.value = CallState.CONNECTED
-            }
+                override fun onCreateSuccess(sdp: SessionDescription) {
+                    peerConnection?.setLocalDescription(this, sdp)
+                    webRtcClient.sendAnswer(callId, sdp.description)
+                    // Transition to CONNECTED immediately after signaling success.
+                    // This moves the UI from RINGING to the Video screen.
+                    _callState.value = CallState.CONNECTED
+                }
             override fun onSetSuccess() {}
             override fun onCreateFailure(p0: String?) {}
             override fun onSetFailure(p0: String?) {}
@@ -195,7 +212,7 @@ class VideoCallViewModel @Inject constructor(
                     override fun onSetSuccess() { 
                         isRemoteDescriptionSet = true
                         drainIceBuffer()
-                        // Caller side: CONNECTED immediately after answer SDP is set.
+                        // Caller side: Transition to CONNECTED immediately after answer is received.
                         _callState.value = CallState.CONNECTED
                     }
                     override fun onSetFailure(p0: String?) {}

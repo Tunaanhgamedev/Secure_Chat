@@ -36,6 +36,7 @@ fun VideoCallScreen(
 ) {
     val callState by viewModel.callState.collectAsState()
     val remoteTrack by viewModel.remoteVideoTrack.collectAsState()
+    val networkMessage by viewModel.networkMessage.collectAsState()
 
     LaunchedEffect(callState) {
         if (callState == CallState.ENDED) {
@@ -46,12 +47,26 @@ fun VideoCallScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1C1C1E))) {
         when (callState) {
             CallState.CALLING, CallState.RINGING -> {
-                CallingUI(viewModel.peerName)
+                CallingUI(viewModel.peerName, viewModel.eglContext, viewModel)
             }
             CallState.CONNECTED -> {
                 VideoUI(remoteTrack, viewModel.eglContext, viewModel)
             }
             else -> {}
+        }
+
+        // Overlay Message (Messenger-like)
+        networkMessage?.let { msg ->
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 80.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(text = msg, color = Color.White, fontSize = 14.sp)
+            }
         }
 
         // Common Controls at bottom
@@ -64,7 +79,7 @@ fun VideoCallScreen(
 }
 
 @Composable
-fun CallingUI(name: String) {
+fun CallingUI(name: String, eglContext: EglBase.Context, viewModel: VideoCallViewModel) {
     val infiniteTransition = rememberInfiniteTransition()
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -75,25 +90,45 @@ fun CallingUI(name: String) {
         )
     )
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            // Pulse effect
-            Box(
-                modifier = Modifier
-                    .size((120 * pulseScale).dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF0A84FF).copy(alpha = 0.2f))
-            )
-            AvatarCircle(name = name, size = 120)
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Full screen background for local preview while calling
+        AndroidView(
+            factory = { context ->
+                SurfaceViewRenderer(context).apply {
+                    init(eglContext, null)
+                    setEnableHardwareScaler(true)
+                    setMirror(true)
+                }
+            },
+            update = { view ->
+                viewModel.getLocalVideoTrack().addSink(view)
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Dark overlay for readability
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
+
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                // Pulse effect
+                Box(
+                    modifier = Modifier
+                        .size((120 * pulseScale).dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF0A84FF).copy(alpha = 0.2f))
+                )
+                AvatarCircle(name = name, size = 120)
+            }
+            Spacer(modifier = Modifier.height(32.dp))
+            Text(text = name, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = "Đang gọi...", color = Color(0xFFE5E5EA), fontSize = 16.sp)
         }
-        Spacer(modifier = Modifier.height(32.dp))
-        Text(text = name, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "Đang gọi...", color = Color(0xFF8E8E93), fontSize = 16.sp)
     }
 }
 

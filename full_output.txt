@@ -1,4 +1,4 @@
-0: Starting a Gradle Daemon, 1 busy and 1 incompatible and 12 stopped Daemons could not be reused, use --status for details
+0: Starting a Gradle Daemon, 2 incompatible and 5 stopped Daemons could not be reused, use --status for details
 1: > Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
 2: > Task :app:preBuild UP-TO-DATE
 3: > Task :app:preDebugBuild UP-TO-DATE
@@ -21,5 +21,5 @@
 20: > Task :app:kspDebugKotlin
 21: > Task :app:compileDebugKotlin
 22: 
-23: BUILD SUCCESSFUL in 3m 41s
+23: BUILD SUCCESSFUL in 1m 29s
 24: 18 actionable tasks: 6 executed, 12 up-to-date
