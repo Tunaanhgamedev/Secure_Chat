@@ -56,16 +56,25 @@ class HomeViewModel @Inject constructor(
                 groupRepository.getMyGroupConversations()
             ) { oneOnOneChats, customGroups ->
                 (oneOnOneChats + customGroups).sortedByDescending { it.lastTimestamp }
+            }.catch { e ->
+                e.printStackTrace()
+                _conversations.value = emptyList()
             }.collectLatest { _conversations.value = it }
         }
         viewModelScope.launch {
-            chatRepository.getMessageRequests().collectLatest { _messageRequests.value = it }
+            chatRepository.getMessageRequests()
+                .catch { _messageRequests.value = emptyList() }
+                .collectLatest { _messageRequests.value = it }
         }
         viewModelScope.launch {
-            chatRepository.getFriendRequests().collectLatest { _friendRequests.value = it }
+            chatRepository.getFriendRequests()
+                .catch { _friendRequests.value = emptyList() }
+                .collectLatest { _friendRequests.value = it }
         }
         viewModelScope.launch {
-            chatRepository.getUsers().collectLatest { _allUsers.value = it }
+            chatRepository.getUsers()
+                .catch { _allUsers.value = emptyList() }
+                .collectLatest { _allUsers.value = it }
         }
     }
 

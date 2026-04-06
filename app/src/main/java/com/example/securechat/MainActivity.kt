@@ -20,15 +20,39 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var authRepository: AuthRepository
 
+    private val permissions = arrayOf(
+        Manifest.permission.CAMERA,
+        Manifest.permission.RECORD_AUDIO
+    )
+
+    private val requestPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val allGranted = results.values.all { it }
+        if (!allGranted) {
+            // Permission denied - you might want to show a Toast or Snackbar
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Request Permissions if not granted
+        if (!allPermissionsGranted()) {
+            requestPermissionsLauncher.launch(permissions)
+        }
+
         // Track App Lifecycle for Presence
         ProcessLifecycleOwner.get().lifecycle.addObserver(LifecycleEventObserver { _, event ->
             val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
@@ -63,5 +87,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun allPermissionsGranted() = permissions.all {
+        ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
     }
 }

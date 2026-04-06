@@ -1,5 +1,6 @@
 package com.example.securechat.presentation.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,7 +34,7 @@ fun SecureChatNavGraph() {
     val auth          = FirebaseAuth.getInstance()
     val startDest     = remember { if (auth.currentUser != null) "home" else "login" }
 
-val callManagerViewModel: CallManagerViewModel = hiltViewModel()
+    val callManagerViewModel: CallManagerViewModel = hiltViewModel()
     val incomingCall by callManagerViewModel.incomingCall.collectAsState()
 
     // Show Dialog if there's an incoming call ringing
@@ -41,19 +42,22 @@ val callManagerViewModel: CallManagerViewModel = hiltViewModel()
     val currentRoute = currentBackStackEntry?.destination?.route
     val isNotOnCallScreen = currentRoute == null || !currentRoute.startsWith("call/")
 
-    if (incomingCall?.status == "ringing" && isNotOnCallScreen) {
-IncomingCallDialog(
-            callModel = incomingCall!!,
-            onAccept = {
-                callManagerViewModel.acceptCall(incomingCall!!.callerId) {
-                    val peerName = incomingCall!!.callerName
-                    navController.navigate("call/${incomingCall!!.callerId}?peerName=$peerName&isIncoming=true")
+    // Safety check for incomingCall notification
+    incomingCall?.let { call ->
+        if (call.status == "ringing" && isNotOnCallScreen) {
+            IncomingCallDialog(
+                callModel = call,
+                onAccept = {
+                    callManagerViewModel.acceptCall(call.callerId) {
+                        val encodedName = Uri.encode(call.callerName)
+                        navController.navigate("call/${call.callerId}?peerName=$encodedName&isIncoming=true")
+                    }
+                },
+                onDecline = {
+                    callManagerViewModel.declineCall(call.callerId)
                 }
-            },
-            onDecline = {
-                callManagerViewModel.declineCall(incomingCall!!.callerId)
-            }
-        )
+            )
+        }
     }
 
     NavHost(navController = navController, startDestination = startDest) {
@@ -62,7 +66,10 @@ IncomingCallDialog(
             LoginScreen(
                 onNavigateToRegister = { navController.navigate("register") },
                 onLoginSuccess = {
-                    navController.navigate("home") { popUpTo("login") { inclusive = true } }
+                    navController.navigate("home") { 
+                        popUpTo("login") { inclusive = true } 
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -73,7 +80,10 @@ IncomingCallDialog(
                     navController.navigate("login") { popUpTo("register") { inclusive = true } }
                 },
                 onRegisterSuccess = {
-                    navController.navigate("home") { popUpTo("register") { inclusive = true } }
+                    navController.navigate("home") { 
+                        popUpTo("register") { inclusive = true } 
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -81,21 +91,26 @@ IncomingCallDialog(
         composable("home") {
             HomeScreen(
                 onConversationClick = { peerId, peerName ->
-                    navController.navigate("chat/$peerId?peerName=$peerName")
+                    val encodedName = Uri.encode(peerName)
+                    navController.navigate("chat/$peerId?peerName=$encodedName")
                 },
                 onCustomGroupClick = { groupId, groupName ->
-                    navController.navigate("custom_group_chat/$groupId?groupName=$groupName")
+                    val encodedName = Uri.encode(groupName)
+                    navController.navigate("custom_group_chat/$groupId?groupName=$encodedName")
                 },
                 onUserClick = { user ->
-                    navController.navigate(
-                        "chat/${user.id}?peerName=${user.username.ifBlank { user.email }}"
-                    )
+                    val name = user.username.ifBlank { user.email }
+                    val encodedName = Uri.encode(name)
+                    navController.navigate("chat/${user.id}?peerName=$encodedName")
                 },
                 onGroupChatClick = { navController.navigate("group_chat") },
                 onCreateGroupClick = { navController.navigate("create_group") },
                 onProfileClick = { navController.navigate("profile") },
                 onLogout = {
-                    navController.navigate("login") { popUpTo("home") { inclusive = true } }
+                    navController.navigate("login") { 
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -130,7 +145,8 @@ IncomingCallDialog(
                 peerName         = peerName,
                 onNavigateBack   = { navController.popBackStack() },
                 onNavigateToCall = { 
-                    navController.navigate("call/$userId?peerName=$peerName&isIncoming=false") 
+                    val encodedName = Uri.encode(peerName)
+                    navController.navigate("call/$userId?peerName=$encodedName&isIncoming=false") 
                 }
             )
         }

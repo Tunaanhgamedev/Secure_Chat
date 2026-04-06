@@ -32,34 +32,75 @@ class WebRtcClient @Inject constructor(
 
     private var videoCapturer: CameraVideoCapturer? = null
     private val localVideoSource by lazy { peerConnectionFactory.createVideoSource(false) }
-    private val localAudioSource by lazy { peerConnectionFactory.createAudioSource(MediaConstraints()) }
+    private val localAudioSource by lazy { 
+        val constraints = MediaConstraints().apply {
+            mandatory.add(MediaConstraints.KeyValuePair("googEchoCancellation", "true"))
+            mandatory.add(MediaConstraints.KeyValuePair("googAutoGainControl", "true"))
+            mandatory.add(MediaConstraints.KeyValuePair("googHighpassFilter", "true"))
+            mandatory.add(MediaConstraints.KeyValuePair("googNoiseSuppression", "true"))
+        }
+        peerConnectionFactory.createAudioSource(constraints) 
+    }
+    
+    private var localVideoTrack: VideoTrack? = null
+    private var localAudioTrack: AudioTrack? = null
 
     fun createPeerConnection(observer: PeerConnection.Observer): PeerConnection? {
         val iceServers = listOf(
-            PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer()
+            PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
+            PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer(),
+            PeerConnection.IceServer.builder("stun:stun2.l.google.com:19302").createIceServer(),
+            PeerConnection.IceServer.builder("stun:stun3.l.google.com:19302").createIceServer(),
+            PeerConnection.IceServer.builder("stun:stun4.l.google.com:19302").createIceServer(),
+            PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer()
         )
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+            continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+            iceTransportsType = PeerConnection.IceTransportsType.ALL
         }
         return peerConnectionFactory.createPeerConnection(rtcConfig, observer)
     }
 
-    // ─── Local Media Support ──────────────────────────────────────────────────
-    fun startLocalVideo(surfaceViewRenderer: SurfaceViewRenderer) {
-        surfaceViewRenderer.init(eglBaseContext, null)
-        surfaceViewRenderer.setEnableHardwareScaler(true)
-        surfaceViewRenderer.setMirror(true)
-
-        videoCapturer = getVideoCapturer(context)
-        videoCapturer?.initialize(SurfaceTextureHelper.create("CaptureThread", eglBaseContext), context, localVideoSource.capturerObserver)
-        videoCapturer?.startCapture(720, 480, 30)
-
-        val localVideoTrack = peerConnectionFactory.createVideoTrack("v_track", localVideoSource)
-        localVideoTrack.addSink(surfaceViewRenderer)
+    fun getOfferConstraints(): MediaConstraints = MediaConstraints().apply {
+        mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"))
+        mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
     }
 
-    fun getLocalVideoTrack(): VideoTrack = peerConnectionFactory.createVideoTrack("v_track", localVideoSource)
-    fun getLocalAudioTrack(): AudioTrack = peerConnectionFactory.createAudioTrack("a_track", localAudioSource)
+    // ─── Local Media Support ──────────────────────────────────────────────────
+    private var audioManager: android.media.AudioManager? = null
+
+    fun startLocalCapture() {
+        if (videoCapturer == null) {
+            videoCapturer = getVideoCapturer(context)
+            val helper = SurfaceTextureHelper.create("CaptureThread", eglBaseContext)
+            videoCapturer?.initialize(helper, context, localVideoSource.capturerObserver)
+            videoCapturer?.startCapture(1280, 720, 30) // Use HD for better experience
+        }
+        
+        // Audio Management
+        if (audioManager == null) {
+            audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            audioManager?.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+            audioManager?.isSpeakerphoneOn = true
+        }
+    }
+
+    fun getLocalVideoTrack(): VideoTrack {
+        if (localVideoTrack == null) {
+            localVideoTrack = peerConnectionFactory.createVideoTrack("v_track", localVideoSource)
+            localVideoTrack?.setEnabled(true)
+        }
+        return localVideoTrack!!
+    }
+
+    fun getLocalAudioTrack(): AudioTrack {
+        if (localAudioTrack == null) {
+            localAudioTrack = peerConnectionFactory.createAudioTrack("a_track", localAudioSource)
+            localAudioTrack?.setEnabled(true)
+        }
+        return localAudioTrack!!
+    }
 
     private fun getVideoCapturer(context: Context): CameraVideoCapturer? {
         val enumerator = Camera2Enumerator(context)
@@ -76,6 +117,13 @@ class WebRtcClient @Inject constructor(
         videoCapturer?.stopCapture()
         videoCapturer?.dispose()
         videoCapturer = null
+        localVideoTrack = null
+        localAudioTrack = null
+        
+        // Reset Audio
+        audioManager?.mode = android.media.AudioManager.MODE_NORMAL
+        audioManager?.isSpeakerphoneOn = false
+        audioManager = null
     }
 
     fun switchCamera() {

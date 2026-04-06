@@ -84,7 +84,8 @@ class CustomGroupRepositoryImpl @Inject constructor() : CustomGroupRepository {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
+                if (error.code == DatabaseError.PERMISSION_DENIED) close() 
+                else close(error.toException())
             }
         }
         
@@ -99,7 +100,8 @@ class CustomGroupRepositoryImpl @Inject constructor() : CustomGroupRepository {
                 trySend(group)
             }
             override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
+                if (error.code == DatabaseError.PERMISSION_DENIED) close() 
+                else close(error.toException())
             }
         }
         groupsRef.child(groupId).addValueEventListener(listener)
@@ -140,7 +142,8 @@ class CustomGroupRepositoryImpl @Inject constructor() : CustomGroupRepository {
                 }
             }
             override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
+                if (error.code == DatabaseError.PERMISSION_DENIED) close() 
+                else close(error.toException())
             }
         }
         // Actually, we need to listen to custom_groups changes too, but watching user groups is the entry.
@@ -242,7 +245,10 @@ class CustomGroupRepositoryImpl @Inject constructor() : CustomGroupRepository {
                 }
                 trySend(msgs)
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) {
+                if (error.code == DatabaseError.PERMISSION_DENIED) close() 
+                else close(error.toException())
+            }
         }
         val ref = messagesRef.child(groupId)
         ref.addValueEventListener(listener)

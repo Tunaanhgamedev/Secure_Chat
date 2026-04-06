@@ -39,11 +39,17 @@ class VideoCallViewModel @Inject constructor(
 
     private val pcObserver = object : PeerConnection.Observer {
         override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
-        override fun onIceConnectionChange(p0: PeerConnection.IceConnectionState?) {
-            if (p0 == PeerConnection.IceConnectionState.CONNECTED) {
-                _callState.value = CallState.CONNECTED
-            } else if (p0 == PeerConnection.IceConnectionState.DISCONNECTED || p0 == PeerConnection.IceConnectionState.FAILED) {
-                _callState.value = CallState.ENDED
+        override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
+            when (state) {
+                PeerConnection.IceConnectionState.CONNECTED,
+                PeerConnection.IceConnectionState.COMPLETED -> {
+                    _callState.value = CallState.CONNECTED
+                }
+                PeerConnection.IceConnectionState.FAILED -> {
+                    // Only end on FAILED — DISCONNECTED is transient and may recover
+                    endCall()
+                }
+                else -> {}
             }
         }
         override fun onIceConnectionReceivingChange(p0: Boolean) {}
@@ -53,52 +59,86 @@ class VideoCallViewModel @Inject constructor(
         }
         override fun onIceCandidatesRemoved(p0: Array<out IceCandidate>?) {}
         override fun onAddStream(p0: MediaStream?) {
-            p0?.videoTracks?.firstOrNull()?.let { _remoteVideoTrack.value = it }
+            // Legacy callback — dispatch to main thread
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                p0?.videoTracks?.firstOrNull()?.let { track ->
+                    track.setEnabled(true)
+                    _remoteVideoTrack.value = track
+                }
+            }
         }
         override fun onRemoveStream(p0: MediaStream?) {}
         override fun onDataChannel(p0: DataChannel?) {}
         override fun onRenegotiationNeeded() {}
         override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {
-            receiver?.track()?.let { track ->
-                if (track is VideoTrack) _remoteVideoTrack.value = track
+            // UNIFIED_PLAN callback — dispatch to main thread
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                receiver?.track()?.let { track ->
+                    track.setEnabled(true)
+                    if (track is VideoTrack) _remoteVideoTrack.value = track
+                }
             }
         }
     }
 
+    private var isRemoteDescriptionSet = false
+    private val iceCandidateBuffer = mutableListOf<IceCandidate>()
+    private var offerCreated = false  // guard: ensure createOffer runs exactly once
+
     init {
+        webRtcClient.startLocalCapture()
         initPeerConnection()
+
         if (isIncoming) {
-            // Receiver accepts the call from global dialog, then navigates here.
-            // On navigating here, they should send "accepted" to Firebase.
-            viewModelScope.launch {
-                chatRepository.respondToCall(targetUserId, "accepted")
-            }
-            // Listen for caller's offer
+            // NOTE: respondToCall("accepted") was already called by CallManagerViewModel.
+            // Do NOT call it again here. Just listen for the offer from the caller.
             listenForOffer()
         } else {
-            // Caller stars call
             viewModelScope.launch {
-                val photoUrl = FirebaseAuth.getInstance().currentUser?.photoUrl?.toString()
-                chatRepository.startCall(targetUserId, peerName, photoUrl)
-                chatRepository.listenForCallStatus(targetUserId).collectLatest { status ->
-                    if (status == "accepted") {
-                        createOffer() // NOW we create offer
-                    } else if (status == "declined" || status == "ended") {
-                        endCall()
+                val currentUser = FirebaseAuth.getInstance().currentUser
+                val photoUrl = currentUser?.photoUrl?.toString()
+                val myName = currentUser?.displayName
+                    ?: currentUser?.email?.substringBefore('@')
+                    ?: "Unknown"
+                chatRepository.startCall(targetUserId, myName, photoUrl)
+            }
+            // Listen for receiver's "accepted" — create offer exactly once
+            viewModelScope.launch {
+                chatRepository.listenForCallStatus(targetUserId).collect { status ->
+                    if (!offerCreated && status == "accepted") {
+                        offerCreated = true
+                        createOffer()
                     }
                 }
             }
         }
+
+        // Both sides: watch for call termination signals
+        viewModelScope.launch {
+            chatRepository.listenForCallStatus(targetUserId).collect { status ->
+                if (status == "ended" || status == "declined") {
+                    endCall()
+                }
+            }
+        }
+
         listenForIceCandidates()
     }
 
     private fun initPeerConnection() {
         peerConnection = webRtcClient.createPeerConnection(pcObserver)
-        peerConnection?.addTrack(webRtcClient.getLocalVideoTrack())
-        peerConnection?.addTrack(webRtcClient.getLocalAudioTrack())
+        
+        val videoTrack = webRtcClient.getLocalVideoTrack()
+        videoTrack.setEnabled(true)
+        peerConnection?.addTrack(videoTrack)
+        
+        val audioTrack = webRtcClient.getLocalAudioTrack()
+        audioTrack.setEnabled(true)
+        peerConnection?.addTrack(audioTrack)
     }
 
     private fun createOffer() {
+        val constraints = webRtcClient.getOfferConstraints()
         peerConnection?.createOffer(object : SdpObserver {
             override fun onCreateSuccess(sdp: SessionDescription) {
                 peerConnection?.setLocalDescription(this, sdp)
@@ -108,7 +148,7 @@ class VideoCallViewModel @Inject constructor(
             override fun onSetSuccess() {}
             override fun onCreateFailure(p0: String?) {}
             override fun onSetFailure(p0: String?) {}
-        }, MediaConstraints())
+        }, constraints)
     }
 
     private fun listenForOffer() {
@@ -116,25 +156,35 @@ class VideoCallViewModel @Inject constructor(
             webRtcClient.listenForOffer(callId).filterNotNull().collectLatest { sdp ->
                 peerConnection?.setRemoteDescription(object : SdpObserver {
                     override fun onCreateSuccess(p0: SessionDescription?) {}
-                    override fun onSetSuccess() { createAnswer() }
-                    override fun onCreateFailure(p0: String?) {}
+                    override fun onSetSuccess() { 
+                        isRemoteDescriptionSet = true
+                        drainIceBuffer()
+                        createAnswer() 
+                    }
                     override fun onSetFailure(p0: String?) {}
+                    override fun onCreateFailure(p0: String?) {}
                 }, SessionDescription(SessionDescription.Type.OFFER, sdp))
             }
         }
     }
 
     private fun createAnswer() {
+        val constraints = MediaConstraints().apply {
+            mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"))
+            mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
+        }
         peerConnection?.createAnswer(object : SdpObserver {
             override fun onCreateSuccess(sdp: SessionDescription) {
                 peerConnection?.setLocalDescription(this, sdp)
                 webRtcClient.sendAnswer(callId, sdp.description)
+                // Transition to CONNECTED immediately after SDP exchange for UI feedback.
+                // ICE will handle actual media delivery when it connects.
                 _callState.value = CallState.CONNECTED
             }
             override fun onSetSuccess() {}
             override fun onCreateFailure(p0: String?) {}
             override fun onSetFailure(p0: String?) {}
-        }, MediaConstraints())
+        }, constraints)
     }
 
     private fun listenForAnswer() {
@@ -142,9 +192,14 @@ class VideoCallViewModel @Inject constructor(
             webRtcClient.listenForAnswer(callId).filterNotNull().collectLatest { sdp ->
                 peerConnection?.setRemoteDescription(object : SdpObserver {
                     override fun onCreateSuccess(p0: SessionDescription?) {}
-                    override fun onSetSuccess() { _callState.value = CallState.CONNECTED }
-                    override fun onCreateFailure(p0: String?) {}
+                    override fun onSetSuccess() { 
+                        isRemoteDescriptionSet = true
+                        drainIceBuffer()
+                        // Caller side: CONNECTED immediately after answer SDP is set.
+                        _callState.value = CallState.CONNECTED
+                    }
                     override fun onSetFailure(p0: String?) {}
+                    override fun onCreateFailure(p0: String?) {}
                 }, SessionDescription(SessionDescription.Type.ANSWER, sdp))
             }
         }
@@ -153,9 +208,19 @@ class VideoCallViewModel @Inject constructor(
     private fun listenForIceCandidates() {
         viewModelScope.launch {
             webRtcClient.listenForIceCandidates(callId, !isIncoming).collectLatest { model ->
-                peerConnection?.addIceCandidate(IceCandidate(model.sdpMid, model.sdpMLineIndex, model.candidate))
+                val candidate = IceCandidate(model.sdpMid, model.sdpMLineIndex, model.candidate)
+                if (isRemoteDescriptionSet) {
+                    peerConnection?.addIceCandidate(candidate)
+                } else {
+                    iceCandidateBuffer.add(candidate)
+                }
             }
         }
+    }
+
+    private fun drainIceBuffer() {
+        iceCandidateBuffer.forEach { peerConnection?.addIceCandidate(it) }
+        iceCandidateBuffer.clear()
     }
 
     fun endCall() {

@@ -11,9 +11,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.PersonSearch
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Search
@@ -177,7 +183,7 @@ fun DrawerContent(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 24.dp)) {
             Text("Menu", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Spacer(modifier = Modifier.weight(1f))
-            Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = Color.White)
+            Icon(Icons.Filled.QrCodeScanner, contentDescription = null, tint = Color.White)
         }
 
         // Profile Section
@@ -198,12 +204,12 @@ fun DrawerContent(
         HorizontalDivider(color = SurfaceVariant, modifier = Modifier.padding(vertical = 16.dp))
 
         DrawerItem(
-            Icons.Default.Forum, 
+            Icons.Filled.Forum, 
             "Tin nhắn đang chờ", 
             count = messageRequestCount, 
             onClick = { onTabSelect(HomeTab.MESSAGE_REQUESTS) }
         )
-        DrawerItem(Icons.Default.PersonAdd, "Lời mời kết bạn", count = friendRequestCount, onClick = { onTabSelect(HomeTab.REQUESTS) })
+        DrawerItem(Icons.Filled.PersonAdd, "Lời mời kết bạn", count = friendRequestCount, onClick = { onTabSelect(HomeTab.REQUESTS) })
 
         Spacer(modifier = Modifier.weight(1f))
     }
@@ -353,7 +359,7 @@ fun FindFriendsTab(users: List<User>, onUserClick: (User) -> Unit) {
     if (users.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.PersonSearch, contentDescription = null, modifier = Modifier.size(64.dp), tint = SecondaryText)
+                Icon(Icons.Filled.PersonSearch, contentDescription = null, modifier = Modifier.size(64.dp), tint = SecondaryText)
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Không tìm thấy người dùng nào.", color = SecondaryText)
             }

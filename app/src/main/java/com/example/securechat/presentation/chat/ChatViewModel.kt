@@ -38,16 +38,38 @@ class ChatViewModel @Inject constructor(
     val peerUser: StateFlow<User?> = _peerUser
 
     init {
-        otherUserId?.let { id ->
+        val id = otherUserId
+        if (id != null) {
             viewModelScope.launch {
-                getMessagesUseCase(id).collectLatest { _messages.value = it }
+                try {
+                    getMessagesUseCase(id)
+                        .catch { e ->
+                            e.printStackTrace()
+                            _messages.value = emptyList()
+                        }
+                        .collectLatest { _messages.value = it }
+                } catch (e: Exception) {
+                    _messages.value = emptyList()
+                }
             }
             viewModelScope.launch {
-                chatRepository.isFriend(id).collectLatest { _isFriend.value = it }
+                try {
+                    chatRepository.isFriend(id)
+                        .catch { _isFriend.value = false }
+                        .collectLatest { _isFriend.value = it }
+                } catch (e: Exception) {
+                    _isFriend.value = false
+                }
             }
             viewModelScope.launch {
-                chatRepository.getUsers().collectLatest { users ->
-                    _peerUser.value = users.find { it.id == id }
+                try {
+                    chatRepository.getUsers()
+                        .catch { _peerUser.value = null }
+                        .collectLatest { users ->
+                            _peerUser.value = users.find { it.id == id }
+                        }
+                } catch (e: Exception) {
+                    _peerUser.value = null
                 }
             }
         }

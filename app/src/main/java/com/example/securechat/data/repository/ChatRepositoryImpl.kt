@@ -51,7 +51,8 @@ class ChatRepositoryImpl @Inject constructor(
                 trySend(users)
             }
             override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
+                if (error.code == DatabaseError.PERMISSION_DENIED) close() 
+                else close(error.toException())
             }
         }
         val ref = db.getReference("users")
@@ -71,12 +72,15 @@ class ChatRepositoryImpl @Inject constructor(
                     val conversations = snapshot.children.mapNotNull { child ->
                         val peerId = child.child("peerId").getValue(String::class.java) ?: return@mapNotNull null
                         
-                        // Fetch presence and photo for peer
-                        val peerSnap = db.getReference("users").child(peerId).get().await()
-                        val isOnline = peerSnap.child("isOnline").getValue(Boolean::class.java) ?: false
-                        val lastSeen = peerSnap.child("lastSeen").getValue(Long::class.java) ?: 0L
-                        val isHidden = peerSnap.child("isPresenceHidden").getValue(Boolean::class.java) ?: false
-                        val photoUrl = peerSnap.child("photoUrl").getValue(String::class.java)
+                        // Fetch presence and photo for peer safely
+                        val peerSnap = try {
+                            db.getReference("users").child(peerId).get().await()
+                        } catch (e: Exception) { null }
+
+                        val isOnline = peerSnap?.child("isOnline")?.getValue(Boolean::class.java) ?: false
+                        val lastSeen = peerSnap?.child("lastSeen")?.getValue(Long::class.java) ?: 0L
+                        val isHidden = peerSnap?.child("isPresenceHidden")?.getValue(Boolean::class.java) ?: false
+                        val photoUrl = peerSnap?.child("photoUrl")?.getValue(String::class.java)
 
                         Conversation(
                             peerId       = peerId,
@@ -92,7 +96,10 @@ class ChatRepositoryImpl @Inject constructor(
                     trySend(conversations)
                 }
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) {
+                if (error.code == DatabaseError.PERMISSION_DENIED) close() 
+                else close(error.toException())
+            }
         }
         val ref = db.getReference(node).child(myUid)
         ref.addValueEventListener(listener)
@@ -144,7 +151,10 @@ class ChatRepositoryImpl @Inject constructor(
                     trySend(users)
                 }
             }
-            override fun onCancelled(error: DatabaseError) {}
+            override fun onCancelled(error: DatabaseError) {
+                if (error.code == DatabaseError.PERMISSION_DENIED) close() 
+                else close(error.toException())
+            }
         }
         val ref = db.getReference("friend_requests").child(myUid)
         ref.addValueEventListener(listener)
@@ -205,7 +215,7 @@ class ChatRepositoryImpl @Inject constructor(
                         val delMap = child.child("deletedForUsers").value as? Map<*, *>
                         val delUids = delMap?.keys?.filterIsInstance<String>()?.joinToString(",") ?: ""
                         
-                        MessageEntity(
+                        val msg = MessageEntity(
                             id                   = child.key ?: return@mapNotNull null,
                             senderId             = child.child("senderId").getValue(String::class.java) ?: "",
                             senderName           = child.child("senderName").getValue(String::class.java) ?: "",
@@ -219,18 +229,37 @@ class ChatRepositoryImpl @Inject constructor(
                             fileName             = child.child("fileName").getValue(String::class.java),
                             fileType             = child.child("fileType").getValue(String::class.java)
                         )
+                        msg
                     }
-                    launch { messageDao.insertMessages(messages) }
+                    
+                    // Directly send mapped messages to the UI for immediate visibility
+                    launch {
+                        val domainMessages = messages.map { it.toDomain() }
+                            .filter { !it.deletedForUsers.containsKey(myId) }
+                        send(domainMessages)
+                    }
+
+                    // Background sync to Room
+                    repositoryScope.launch {
+                        try {
+                            if (messages.isNotEmpty()) {
+                                messageDao.insertMessages(messages)
+                            }
+                        } catch (e: Exception) { e.printStackTrace() }
+                    }
                 }
-                override fun onCancelled(error: DatabaseError) {}
+                override fun onCancelled(error: DatabaseError) {
+                    if (error.code == DatabaseError.PERMISSION_DENIED) close() 
+                    else close(error.toException())
+                }
             }
+            
             val ref = db.getReference("messages").child(chatId)
             ref.addValueEventListener(listener)
-            val localFlow = messageDao.getMessages(chatId).map { entities -> 
-                entities.map { it.toDomain() }.filter { !it.deletedForUsers.containsKey(myId) } 
+            
+            awaitClose { 
+                ref.removeEventListener(listener)
             }
-            launch { localFlow.collect { trySend(it) } }
-            awaitClose { ref.removeEventListener(listener) }
         }
     }
 
@@ -238,7 +267,10 @@ class ChatRepositoryImpl @Inject constructor(
         val myId   = auth.currentUser?.uid ?: return
         val myName = auth.currentUser?.displayName ?: auth.currentUser?.email ?: "Tôi"
         val chatId = chatId(myId, otherUserId)
-        val msgId     = db.getReference("messages").child(chatId).push().key ?: return
+        val msgId     = db.getReference("messages").child(chatId).push().key ?: run {
+            // Log error or notify if needed
+            return
+        }
         val timestamp = System.currentTimeMillis()
         
         val msgData = mutableMapOf<String, Any>(
@@ -251,11 +283,15 @@ class ChatRepositoryImpl @Inject constructor(
         fileName?.let { msgData["fileName"] = it }
         fileType?.let { msgData["fileType"] = it }
 
-        db.getReference("messages").child(chatId).child(msgId).setValue(msgData).await()
-
-        val friendStatus = isFriend(otherUserId).first()
-        val node = if (friendStatus) "conversations" else "message_requests"
-        updateConversationsSync(myId, otherUserId, content, timestamp, node)
+        try {
+            db.getReference("messages").child(chatId).child(msgId).setValue(msgData).await()
+            
+            val friendStatus = isFriend(otherUserId).first()
+            val node = if (friendStatus) "conversations" else "message_requests"
+            updateConversationsSync(myId, otherUserId, content, timestamp, node)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     // ─── Group Chat ──────────────────────────────────────────────────────────────
@@ -368,6 +404,10 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun startCall(targetUserId: String, callerName: String, callerPhotoUrl: String?): Result<Unit> {
         return try {
             val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
+            
+            // Cleanup my own node first to clear stale statuses
+            db.getReference("incoming_calls").child(myUid).removeValue().await()
+            
             val callModel = com.example.securechat.domain.model.IncomingCallModel(
                 callerId = myUid,
                 callerName = callerName,
@@ -423,6 +463,9 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun endCallSignal(targetUserId: String): Result<Unit> {
         return try {
             val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
+            // First tell the other side it's ended
+            db.getReference("incoming_calls").child(targetUserId).child("status").setValue("ended").await()
+            // Then cleanup
             db.getReference("incoming_calls").child(targetUserId).removeValue().await()
             db.getReference("incoming_calls").child(myUid).removeValue().await()
             Result.success(Unit)

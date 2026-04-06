@@ -49,7 +49,7 @@ fun VideoCallScreen(
                 CallingUI(viewModel.peerName)
             }
             CallState.CONNECTED -> {
-                VideoUI(remoteTrack, viewModel.eglContext)
+                VideoUI(remoteTrack, viewModel.eglContext, viewModel)
             }
             else -> {}
         }
@@ -98,7 +98,7 @@ fun CallingUI(name: String) {
 }
 
 @Composable
-fun VideoUI(remoteTrack: VideoTrack?, eglContext: EglBase.Context) {
+fun VideoUI(remoteTrack: VideoTrack?, eglContext: EglBase.Context, viewModel: VideoCallViewModel) {
     // Large Remote View
     Box(modifier = Modifier.fillMaxSize()) {
         if (remoteTrack != null) {
@@ -122,15 +122,16 @@ fun VideoUI(remoteTrack: VideoTrack?, eglContext: EglBase.Context) {
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color.Black)
         ) {
-            val viewModel: VideoCallViewModel = hiltViewModel()
             AndroidView(
                 factory = { context ->
                     SurfaceViewRenderer(context).apply {
                         init(eglContext, null)
                         setEnableHardwareScaler(true)
                         setMirror(true)
-                        viewModel.getLocalVideoTrack().addSink(this)
                     }
+                },
+                update = { view ->
+                    viewModel.getLocalVideoTrack().addSink(view)
                 },
                 modifier = Modifier.fillMaxSize()
             )
