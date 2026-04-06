@@ -14,10 +14,27 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +52,9 @@ import com.example.securechat.presentation.home.DarkBackground
 import com.example.securechat.presentation.home.MessengerBlue
 import com.example.securechat.presentation.home.SecondaryText
 import com.example.securechat.presentation.home.SurfaceVariant
+import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -47,7 +67,7 @@ fun CustomGroupChatScreen(
 ) {
     val messages by viewModel.messages.collectAsState()
     val groupInfo by viewModel.groupInfo.collectAsState()
-    val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+    val myUid = FirebaseAuth.getInstance().currentUser?.uid
     
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -276,7 +296,7 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                                     }
                                     .padding(8.dp)
                             ) {
-                                Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Color.White)
+                                Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = null, tint = Color.White)
                                 Spacer(Modifier.width(8.dp))
                                 Text(msg.fileName ?: "Tệp", color = Color.White, fontSize = 12.sp, maxLines = 1)
                             }
@@ -287,9 +307,9 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                         text = msg.content, 
                         color = textColor, 
                         fontSize = 15.sp,
-                        style = if (msg.isDeletedForEveryone) androidx.compose.ui.text.TextStyle(
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                        ) else androidx.compose.ui.text.TextStyle.Default
+                        style = if (msg.isDeletedForEveryone) TextStyle(
+                            fontStyle = FontStyle.Italic
+                        ) else TextStyle.Default
                     )
                 }
             }
@@ -344,7 +364,7 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                                         }
                                         .padding(8.dp)
                                 ) {
-                                    Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Color.White)
+                                    Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = null, tint = Color.White)
                                     Spacer(Modifier.width(8.dp))
                                     Text(msg.fileName ?: "Tệp", color = Color.White, fontSize = 12.sp, maxLines = 1)
                                 }
@@ -355,9 +375,9 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                             text = msg.content, 
                             color = textColor, 
                             fontSize = 15.sp,
-                            style = if (msg.isDeletedForEveryone) androidx.compose.ui.text.TextStyle(
-                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                            ) else androidx.compose.ui.text.TextStyle.Default
+                            style = if (msg.isDeletedForEveryone) TextStyle(
+                                fontStyle = FontStyle.Italic
+                            ) else TextStyle.Default
                         )
                     }
                 }

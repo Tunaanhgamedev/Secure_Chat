@@ -8,7 +8,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
@@ -23,9 +29,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.securechat.domain.model.Conversation
 import com.example.securechat.domain.model.User
+import com.example.securechat.util.TimeUtils
 import kotlinx.coroutines.launch
 
 // Custom Colors for Meta/Messenger style
@@ -96,10 +105,10 @@ fun HomeScreen(
                     },
                     actions = {
                         IconButton(onClick = onCreateGroupClick) {
-                            Icon(Icons.Default.GroupAdd, contentDescription = "Tạo nhóm", tint = Color.White)
+                            Icon(Icons.Filled.GroupAdd, contentDescription = "Tạo nhóm", tint = Color.White)
                         }
                         IconButton(onClick = onGroupChatClick) {
-                            Icon(Icons.Default.Groups, contentDescription = "Groups", tint = Color.White)
+                            Icon(Icons.Filled.Groups, contentDescription = "Groups", tint = Color.White)
                         }
                         IconButton(onClick = { 
                             scope.launch {
@@ -107,7 +116,7 @@ fun HomeScreen(
                                 onLogout()
                             }
                         }) {
-                            Icon(Icons.Default.Logout, contentDescription = "Logout", tint = Color.White)
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Color.White)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
@@ -118,7 +127,7 @@ fun HomeScreen(
                     NavigationBarItem(
                         selected = selectedTab == HomeTab.MESSAGES,
                         onClick = { selectedTab = HomeTab.MESSAGES },
-                        icon = { Icon(Icons.Default.Chat, contentDescription = "Chat") },
+                        icon = { Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat") },
                         label = { Text("Tin Nhắn") },
                         colors = NavigationBarItemDefaults.colors(selectedIconColor = MessengerBlue, selectedTextColor = MessengerBlue, unselectedIconColor = SecondaryText)
                     )
@@ -258,7 +267,7 @@ fun AvatarCircle(name: String, url: String? = null, size: Int = 40, isOnline: Bo
     Box(contentAlignment = Alignment.BottomEnd, modifier = Modifier.size(size.dp)) {
         if (!url.isNullOrBlank()) {
             AsyncImage(
-                model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                model = ImageRequest.Builder(LocalContext.current)
                     .data(url)
                     .crossfade(true)
                     .build(),
@@ -325,7 +334,7 @@ fun ConversationsTab(
                         Text(text = convo.peerName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = if (convo.isOnline) "Đang hoạt động" else com.example.securechat.util.TimeUtils.getRelativeTime(convo.lastSeen),
+                                text = if (convo.isOnline) "Đang hoạt động" else TimeUtils.getRelativeTime(convo.lastSeen),
                                 color = if (convo.isOnline) Color(0xFF30D158) else SecondaryText,
                                 fontSize = 12.sp,
                                 modifier = Modifier.padding(end = 8.dp)
@@ -362,7 +371,7 @@ fun FindFriendsTab(users: List<User>, onUserClick: (User) -> Unit) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = user.username, color = Color.White, fontWeight = FontWeight.SemiBold)
                         Text(
-                            text = if (isActuallyOnline) "Đang hoạt động" else "Hoạt động ${com.example.securechat.util.TimeUtils.getRelativeTime(user.lastSeen)}",
+                            text = if (isActuallyOnline) "Đang hoạt động" else "Hoạt động ${TimeUtils.getRelativeTime(user.lastSeen)}",
                             color = if (isActuallyOnline) Color(0xFF30D158) else SecondaryText, 
                             fontSize = 12.sp
                         )

@@ -13,15 +13,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.FlipCameraAndroid
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -40,6 +39,10 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
+import coil.request.ImageRequest
+import com.example.securechat.util.TimeUtils
 import com.example.securechat.domain.model.Message
 import com.example.securechat.domain.model.User
 import com.example.securechat.presentation.home.AvatarCircle
@@ -144,7 +147,7 @@ fun ChatScreen(
                             val statusText = if (isPeerActuallyOnline) {
                                 "Đang hoạt động"
                             } else if (lastSeen != null && lastSeen > 0L) {
-                                "Hoạt động ${com.example.securechat.util.TimeUtils.getRelativeTime(lastSeen)}"
+                                "Hoạt động ${TimeUtils.getRelativeTime(lastSeen)}"
                             } else {
                                 "Ngoại tuyến"
                             }
@@ -341,7 +344,7 @@ fun MessengerBubble(msg: Message, onLongClick: () -> Unit) {
                                 }
                                 .padding(8.dp)
                         ) {
-                            Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Color.White)
+                            Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = null, tint = Color.White)
                             Spacer(Modifier.width(8.dp))
                             Text(msg.fileName ?: "Tệp", color = Color.White, fontSize = 12.sp, maxLines = 1)
                         }
@@ -352,9 +355,9 @@ fun MessengerBubble(msg: Message, onLongClick: () -> Unit) {
                     text = msg.content, 
                     color = textColor, 
                     fontSize = 15.sp,
-                    style = if (msg.isDeletedForEveryone) androidx.compose.ui.text.TextStyle(
-                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                    ) else androidx.compose.ui.text.TextStyle.Default
+                    style = if (msg.isDeletedForEveryone) TextStyle(
+                        fontStyle = FontStyle.Italic
+                    ) else TextStyle.Default
                 )
             }
         }

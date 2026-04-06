@@ -20,6 +20,12 @@ import com.example.securechat.presentation.login.LoginScreen
 import com.example.securechat.presentation.profile.ProfileScreen
 import com.example.securechat.presentation.register.RegisterScreen
 import com.google.firebase.auth.FirebaseAuth
+import com.example.securechat.presentation.call.*
+import com.example.securechat.presentation.groupchat.create.CreateGroupScreen
+import com.example.securechat.presentation.groupchat.custom.CustomGroupChatScreen
+import com.example.securechat.presentation.groupchat.custom.CustomGroupChatViewModel
+import com.example.securechat.presentation.groupchat.info.GroupInfoScreen
+import com.example.securechat.presentation.groupchat.info.GroupInfoViewModel
 
 @Composable
 fun SecureChatNavGraph() {
@@ -27,8 +33,7 @@ fun SecureChatNavGraph() {
     val auth          = FirebaseAuth.getInstance()
     val startDest     = remember { if (auth.currentUser != null) "home" else "login" }
 
-    // Global Call Manager State
-    val callManagerViewModel: com.example.securechat.presentation.call.CallManagerViewModel = hiltViewModel()
+val callManagerViewModel: CallManagerViewModel = hiltViewModel()
     val incomingCall by callManagerViewModel.incomingCall.collectAsState()
 
     // Show Dialog if there's an incoming call ringing
@@ -37,7 +42,7 @@ fun SecureChatNavGraph() {
     val isNotOnCallScreen = currentRoute == null || !currentRoute.startsWith("call/")
 
     if (incomingCall?.status == "ringing" && isNotOnCallScreen) {
-        com.example.securechat.presentation.call.IncomingCallDialog(
+IncomingCallDialog(
             callModel = incomingCall!!,
             onAccept = {
                 callManagerViewModel.acceptCall(incomingCall!!.callerId) {
@@ -96,7 +101,7 @@ fun SecureChatNavGraph() {
         }
 
         composable("create_group") {
-            com.example.securechat.presentation.groupchat.create.CreateGroupScreen(
+            CreateGroupScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onGroupCreated = { groupId ->
                     navController.popBackStack()
@@ -150,11 +155,11 @@ fun SecureChatNavGraph() {
                 navArgument("groupName") { type = NavType.StringType; defaultValue = "" }
             )
         ) { backStackEntry ->
-            val viewModel: com.example.securechat.presentation.groupchat.custom.CustomGroupChatViewModel = hiltViewModel(backStackEntry)
+val viewModel: CustomGroupChatViewModel = hiltViewModel(backStackEntry)
             val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
             val groupName = backStackEntry.arguments?.getString("groupName") ?: ""
 
-            com.example.securechat.presentation.groupchat.custom.CustomGroupChatScreen(
+CustomGroupChatScreen(
                 viewModel = viewModel,
                 groupNameArg = groupName,
                 onNavigateBack = { navController.popBackStack() },
@@ -168,8 +173,8 @@ fun SecureChatNavGraph() {
             route = "custom_group_info/{groupId}",
             arguments = listOf(navArgument("groupId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val viewModel: com.example.securechat.presentation.groupchat.info.GroupInfoViewModel = hiltViewModel(backStackEntry)
-            com.example.securechat.presentation.groupchat.info.GroupInfoScreen(
+val viewModel: GroupInfoViewModel = hiltViewModel(backStackEntry)
+            GroupInfoScreen(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateHome = { 

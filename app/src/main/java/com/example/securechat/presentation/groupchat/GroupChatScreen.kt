@@ -10,11 +10,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -33,14 +34,15 @@ import android.net.Uri
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.securechat.domain.model.Message
 import com.example.securechat.presentation.home.AvatarCircle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
+import com.example.securechat.util.TimeUtils
 import kotlinx.coroutines.launch
 
-private val Primary  = Color(0xFF0A84FF)
-private val BgDark   = Color(0xFF121212)
-private val Surface1 = Color(0xFF1E1E1E)
-private val Surface2 = Color(0xFF2C2C2E)
-private val TextMain = Color(0xFFFFFFFF)
-private val TextSub  = Color(0xFF8E8E93)
+private val MessengerBlue = Color(0xFF0084FF)
+private val DarkBackground = Color(0xFF1C1C1E)
+private val SurfaceVariant = Color(0xFF2C2C2E)
+private val SecondaryText = Color(0xFF8E8E93)
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -88,7 +90,7 @@ fun GroupChatScreen(
         ModalBottomSheet(
             onDismissRequest = { showSheet = false },
             sheetState = sheetState,
-            containerColor = Surface1
+            containerColor = SurfaceVariant
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
                 if (selectedMessage!!.isMine && !selectedMessage!!.isDeletedForEveryone) {
@@ -103,8 +105,8 @@ fun GroupChatScreen(
                     )
                 }
                 ListItem(
-                    headlineContent = { Text("Gỡ ở phía bạn", color = TextMain) },
-                    leadingContent = { Icon(Icons.Filled.Delete, contentDescription = null, tint = TextMain) },
+                    headlineContent = { Text("Gỡ ở phía bạn", color = Color.White) },
+                        leadingContent = { Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.White) },
                     modifier = Modifier.clickable {
                         viewModel.deleteMessage(selectedMessage!!.id, forEveryone = false)
                         showSheet = false
@@ -116,51 +118,51 @@ fun GroupChatScreen(
     }
 
     Scaffold(
-        containerColor = BgDark,
+        containerColor = DarkBackground,
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Nhóm Chat Chung", fontWeight = FontWeight.Bold, color = TextMain, fontSize = 17.sp)
-                        Text("Tất cả mọi người", color = TextSub, fontSize = 12.sp)
+                        Text("Nhóm Chat Chung", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 17.sp)
+                        Text("Tất cả mọi người", color = SecondaryText, fontSize = 12.sp)
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Primary)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = MessengerBlue)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface1)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceVariant)
             )
         },
         bottomBar = {
             Row(
-                modifier = Modifier.fillMaxWidth().background(Surface1).padding(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().background(SurfaceVariant).padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { getFileLauncher.launch("*/*") }) {
-                    Icon(Icons.Default.AttachFile, contentDescription = "Gửi tệp", tint = TextSub)
+                    Icon(Icons.Default.AttachFile, contentDescription = "Gửi tệp", tint = SecondaryText)
                 }
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
-                    placeholder = { Text("Nhắn tin đến nhóm…", color = TextSub) },
+                    placeholder = { Text("Nhắn tin đến nhóm…", color = SecondaryText) },
                     singleLine = true,
                     shape = RoundedCornerShape(24.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor      = Primary,
-                        unfocusedBorderColor    = Surface2,
-                        focusedTextColor        = TextMain,
-                        unfocusedTextColor      = TextMain,
-                        cursorColor             = Primary,
-                        focusedContainerColor   = Surface2,
-                        unfocusedContainerColor = Surface2
+                        focusedBorderColor      = MessengerBlue,
+                        unfocusedBorderColor    = SurfaceVariant,
+                        focusedTextColor        = Color.White,
+                        unfocusedTextColor      = Color.White,
+                        cursorColor             = MessengerBlue,
+                        focusedContainerColor   = SurfaceVariant,
+                        unfocusedContainerColor = SurfaceVariant
                     ),
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(8.dp))
                 if (isUploading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Primary)
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MessengerBlue)
                     Spacer(Modifier.width(12.dp))
                 } else {
                     IconButton(
@@ -171,7 +173,7 @@ fun GroupChatScreen(
                                 coroutineScope.launch { if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1) }
                             }
                         },
-                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(50)).background(Primary)
+                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(50)).background(MessengerBlue)
                     ) {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Gửi", tint = Color.White)
                     }
@@ -205,12 +207,12 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
     val bubbleColor = if (msg.isDeletedForEveryone) {
         Color.Transparent
     } else if (msg.isMine) {
-        Primary
+        MessengerBlue
     } else {
-        Surface2
+        SurfaceVariant
     }
     
-    val textColor = if (msg.isDeletedForEveryone) TextSub else TextMain
+    val textColor = if (msg.isDeletedForEveryone) SecondaryText else Color.White
 
     if (msg.isMine) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -220,7 +222,7 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                     .background(bubbleColor)
                     .border(
                         width = if (msg.isDeletedForEveryone) 1.dp else 0.dp,
-                        color = if (msg.isDeletedForEveryone) Surface2 else Color.Transparent,
+                        color = if (msg.isDeletedForEveryone) SurfaceVariant else Color.Transparent,
                         shape = RoundedCornerShape(18.dp)
                     )
                     .combinedClickable(
@@ -258,7 +260,7 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                                     }
                                     .padding(8.dp)
                             ) {
-                                Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Color.White)
+                                Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = null, tint = Color.White)
                                 Spacer(Modifier.width(8.dp))
                                 Text(msg.fileName ?: "Tệp", color = Color.White, fontSize = 12.sp, maxLines = 1)
                             }
@@ -269,9 +271,9 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                         text = msg.content, 
                         color = textColor, 
                         fontSize = 15.sp,
-                        style = if (msg.isDeletedForEveryone) androidx.compose.ui.text.TextStyle(
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                        ) else androidx.compose.ui.text.TextStyle.Default
+                        style = if (msg.isDeletedForEveryone) TextStyle(
+                            fontStyle = FontStyle.Italic
+                        ) else TextStyle.Default
                     )
                 }
             }
@@ -281,14 +283,14 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
             AvatarCircle(name = msg.senderName.ifBlank { "?" }, size = 32)
             Spacer(Modifier.width(8.dp))
             Column {
-                Text(msg.senderName, color = TextSub, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp))
+                Text(msg.senderName, color = SecondaryText, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp))
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 18.dp))
                         .background(bubbleColor)
                         .border(
                             width = if (msg.isDeletedForEveryone) 1.dp else 0.dp,
-                            color = if (msg.isDeletedForEveryone) Surface2 else Color.Transparent,
+                            color = if (msg.isDeletedForEveryone) SurfaceVariant else Color.Transparent,
                             shape = RoundedCornerShape(18.dp)
                         )
                         .combinedClickable(
@@ -326,7 +328,7 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                                         }
                                         .padding(8.dp)
                                 ) {
-                                    Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Color.White)
+                                    Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = null, tint = Color.White)
                                     Spacer(Modifier.width(8.dp))
                                     Text(msg.fileName ?: "Tệp", color = Color.White, fontSize = 12.sp, maxLines = 1)
                                 }
@@ -337,9 +339,9 @@ private fun GroupMessageBubble(msg: Message, onLongClick: () -> Unit) {
                             text = msg.content, 
                             color = textColor, 
                             fontSize = 15.sp,
-                            style = if (msg.isDeletedForEveryone) androidx.compose.ui.text.TextStyle(
-                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                            ) else androidx.compose.ui.text.TextStyle.Default
+                            style = if (msg.isDeletedForEveryone) TextStyle(
+                                fontStyle = FontStyle.Italic
+                            ) else TextStyle.Default
                         )
                     }
                 }

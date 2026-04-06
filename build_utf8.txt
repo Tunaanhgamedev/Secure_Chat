@@ -18,7 +18,6 @@
 > Task :app:processDebugManifest UP-TO-DATE
 > Task :app:processDebugManifestForPackage UP-TO-DATE
 > Task :app:processDebugResources UP-TO-DATE
-> Task :app:kspDebugKotlin UP-TO-DATE
 > Task :app:javaPreCompileDebug UP-TO-DATE
 > Task :app:mergeDebugShaders UP-TO-DATE
 > Task :app:compileDebugShaders NO-SOURCE
@@ -35,55 +34,20 @@
 > Task :app:validateSigningDebug UP-TO-DATE
 > Task :app:writeDebugAppMetadata UP-TO-DATE
 > Task :app:writeDebugSigningConfigVersions UP-TO-DATE
+> Task :app:kspDebugKotlin
+> Task :app:compileDebugKotlin
+> Task :app:compileDebugJavaWithJavac
+> Task :app:hiltAggregateDepsDebug UP-TO-DATE
+> Task :app:hiltJavaCompileDebug
+> Task :app:processDebugJavaRes
+> Task :app:mergeDebugJavaResource
+> Task :app:transformDebugClassesWithAsm
+> Task :app:dexBuilderDebug
+> Task :app:mergeProjectDexDebug
+> Task :app:packageDebug
+> Task :app:createDebugApkListingFileRedirect
+> Task :app:assembleDebug
 
-> Task :app:compileDebugKotlin FAILED
-.\gradlew : e: file:///E:/a
-dr_hoc/SecureChat/app/src/m
-ain/java/com/example/secure
-chat/presentation/home/Home
-Screen.kt:262:13 
-Unresolved reference 
-'AsyncImage'.
-At line:1 char:1
-+ .\gradlew assembleDebug 
-2>&1 | Out-File -Encoding 
-utf8 build_errors.t ...
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~
-~~~
-    + CategoryInfo         
-     : NotSpecified: (e:   
-  file:///E:/a...e 'Asyn   
- cImage'.:String) [], R    
-emoteException
-    + FullyQualifiedErrorI 
-   d : NativeCommandError
- 
+BUILD SUCCESSFUL in 1m 47s
+42 actionable tasks: 11 executed, 31 up-to-date
 
-FAILURE: Build failed with 
-an exception.
-
-* What went wrong:
-Execution failed for task 
-':app:compileDebugKotlin'.
-> A failure occurred while 
-executing org.jetbrains.kot
-lin.compilerRunner.GradleCo
-mpilerRunnerWithWorkers$Gra
-dleKotlinCompilerWorkAction
-   > Compilation error. 
-See log for more details
-
-* Try:
-> Run with --stacktrace 
-option to get the stack 
-trace.
-> Run with --info or 
---debug option to get more 
-log output.
-> Run with --scan to get 
-full insights.
-> Get more help at 
-https://help.gradle.org.
-
-BUILD FAILED in 9s
-32 actionable tasks: 1 executed, 31 up-to-date

@@ -4,9 +4,10 @@ import android.net.Uri
 import com.example.securechat.domain.repository.FileStorageRepository
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 import java.util.UUID
 
-class FileStorageRepositoryImpl : FileStorageRepository {
+class FileStorageRepositoryImpl @Inject constructor() : FileStorageRepository {
 
     private val storage = FirebaseStorage.getInstance()
 
