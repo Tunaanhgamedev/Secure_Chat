@@ -1,11 +1,15 @@
-package com.example.securechat.presentation.chat
-
+import android.content.Context
+import android.media.AudioManager
+import android.media.MediaPlayer
+import android.media.RingtoneManager
+import android.media.ToneGenerator
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.securechat.data.remote.WebRtcClient
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.webrtc.*
@@ -17,6 +21,7 @@ enum class CallState { IDLE, CALLING, RINGING, CONNECTED, ENDED }
 class VideoCallViewModel @Inject constructor(
     private val webRtcClient: WebRtcClient,
     private val chatRepository: com.example.securechat.domain.repository.ChatRepository,
+    @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -39,6 +44,10 @@ class VideoCallViewModel @Inject constructor(
 
     private val _networkMessage = MutableStateFlow<String?>(null)
     val networkMessage: StateFlow<String?> = _networkMessage
+
+    // Audio signaling
+    private var mediaPlayer: MediaPlayer? = null
+    private var toneGenerator: ToneGenerator? = null
 
     private val pcObserver = object : PeerConnection.Observer {
         override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
@@ -100,6 +109,13 @@ class VideoCallViewModel @Inject constructor(
     init {
         webRtcClient.startLocalCapture()
         initPeerConnection()
+        
+        // Start Audio Feedback
+        if (isIncoming) {
+            playRingtone()
+        } else {
+            playDialingTone()
+        }
 
         if (isIncoming) {
             // NOTE: respondToCall("accepted") was already called by CallManagerViewModel.
@@ -198,6 +214,7 @@ class VideoCallViewModel @Inject constructor(
                     webRtcClient.sendAnswer(callId, mangledSdp.description)
                     // Transition to CONNECTED immediately after signaling success.
                     // This moves the UI from RINGING to the Video screen.
+                    stopSounds()
                     _callState.value = CallState.CONNECTED
                 }
             override fun onSetSuccess() {}
@@ -215,6 +232,7 @@ class VideoCallViewModel @Inject constructor(
                         isRemoteDescriptionSet = true
                         drainIceBuffer()
                         // Caller side: Transition to CONNECTED immediately after answer is received.
+                        stopSounds()
                         _callState.value = CallState.CONNECTED
                     }
                     override fun onSetFailure(p0: String?) {}
@@ -262,6 +280,46 @@ class VideoCallViewModel @Inject constructor(
     }
 
     fun getLocalVideoTrack(): VideoTrack = webRtcClient.getLocalVideoTrack()
+
+    private fun playRingtone() {
+        try {
+            val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            mediaPlayer = MediaPlayer.create(context, notification)
+            mediaPlayer?.isLooping = true
+            mediaPlayer?.start()
+        } catch (e: Exception) {
+            // Fallback to tone if media player fails
+            playRingtoneSound()
+        }
+    }
+
+    private fun playDialingTone() {
+        try {
+            toneGenerator = ToneGenerator(AudioManager.STREAM_VOICE_CALL, 100)
+            toneGenerator?.startTone(ToneGenerator.TONE_SUP_DIAL, -1)
+        } catch (e: Exception) {}
+    }
+
+    private fun playRingtoneSound() {
+        try {
+            if (toneGenerator == null) {
+                toneGenerator = ToneGenerator(AudioManager.STREAM_RING, 100)
+            }
+            toneGenerator?.startTone(ToneGenerator.TONE_SUP_RINGTONE, -1)
+        } catch (e: Exception) {}
+    }
+
+    private fun stopSounds() {
+        try {
+            toneGenerator?.stopTone()
+            toneGenerator?.release()
+            toneGenerator = null
+
+            mediaPlayer?.stop()
+            mediaPlayer?.release()
+            mediaPlayer = null
+        } catch (e: Exception) {}
+    }
 
     private fun preferCodec(sdp: String, codec: String): String {
         val lines = sdp.split("\r\n")

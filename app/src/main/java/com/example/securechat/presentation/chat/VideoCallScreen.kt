@@ -59,13 +59,21 @@ fun VideoCallScreen(
         networkMessage?.let { msg ->
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 80.dp)
+                    .align(Alignment.Center)
+                    .padding(bottom = 140.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
             ) {
-                Text(text = msg, color = Color.White, fontSize = 14.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = Color(0xFF0A84FF),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(text = msg, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                }
             }
         }
 

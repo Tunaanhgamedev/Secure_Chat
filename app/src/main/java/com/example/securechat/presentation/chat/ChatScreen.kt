@@ -16,11 +16,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -85,7 +85,16 @@ fun ChatScreen(
                 }
             }
 
-            viewModel.sendAttachment(uri, "Tệp đính kèm: $fileName", fileName, mimeType)
+            viewModel.sendAttachment(uri, "Gửi tệp: $fileName", fileName, mimeType)
+            coroutineScope.launch {
+                if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+            }
+        }
+    }
+
+    val getImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            viewModel.sendAttachment(uri, "Đã gửi một ảnh", "image_${System.currentTimeMillis()}.jpg", "image/jpeg")
             coroutineScope.launch {
                 if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
             }
@@ -189,6 +198,11 @@ fun ChatScreen(
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(onClick = { 
+                    getImageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) 
+                }) {
+                    Icon(Icons.Default.AddAPhoto, contentDescription = "Gửi ảnh", tint = MessengerBlue)
+                }
                 IconButton(onClick = { getFileLauncher.launch("*/*") }) {
                     Icon(Icons.Default.AttachFile, contentDescription = "Gửi tệp", tint = SecondaryText)
                 }

@@ -18,12 +18,14 @@ class WebRtcClient @Inject constructor(
         PeerConnectionFactory.initialize(
             PeerConnectionFactory.InitializationOptions.builder(context)
                 .setEnableInternalTracer(true)
+                .setFieldTrials("WebRTC-H264HighProfile/Enabled/")
                 .createInitializationOptions()
         )
         
-        // Default decoder is safer and includes software fallback automatically
-        val decoderFactory = DefaultVideoDecoderFactory(eglBaseContext)
-        val encoderFactory = DefaultVideoEncoderFactory(eglBaseContext, true, true)
+        // Use software decoding as the "bomb-proof" fallback for Xiaomi/4G
+        // while aligning with the Options structure from the reference.
+        val decoderFactory = SoftwareVideoDecoderFactory()
+        val encoderFactory = SoftwareVideoEncoderFactory()
         
         PeerConnectionFactory.builder()
             .setVideoDecoderFactory(decoderFactory)
@@ -57,7 +59,9 @@ class WebRtcClient @Inject constructor(
             PeerConnection.IceServer.builder("stun:stun2.l.google.com:19302").createIceServer(),
             PeerConnection.IceServer.builder("stun:stun3.l.google.com:19302").createIceServer(),
             PeerConnection.IceServer.builder("stun:stun4.l.google.com:19302").createIceServer(),
-            PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer()
+            PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer(),
+            PeerConnection.IceServer.builder("stun:stun.services.mozilla.com").createIceServer(),
+            PeerConnection.IceServer.builder("stun:stun.stunprotocol.org:3478").createIceServer()
         )
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
@@ -65,7 +69,7 @@ class WebRtcClient @Inject constructor(
             iceTransportsType = PeerConnection.IceTransportsType.ALL
             
             // Aggressive bundling to save ports and speed up connection on 4G
-            bundlePolicy = PeerConnection.BundlePolicy.MAX_BUNDLE
+            bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE
             rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE
         }
         return peerConnectionFactory.createPeerConnection(rtcConfig, observer)
@@ -87,11 +91,26 @@ class WebRtcClient @Inject constructor(
             videoCapturer?.startCapture(1280, 720, 30) // Use HD for better experience
         }
         
-        // Audio Management
+        // Audio Management (Professional routing)
         if (audioManager == null) {
             audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            audioManager?.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
-            audioManager?.isSpeakerphoneOn = true
+            audioManager?.apply {
+                mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+                isSpeakerphoneOn = true // Default to speaker for video calls
+                
+                // Request audio focus for the call
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    val focusRequest = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                        .setAudioAttributes(android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build())
+                        .build()
+                    requestAudioFocus(focusRequest)
+                } else {
+                    requestAudioFocus(null, android.media.AudioManager.STREAM_VOICE_CALL, android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                }
+            }
         }
     }
 
