@@ -16,55 +16,94 @@ class SecureChatFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        // Store or send the token to backend
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
-        remoteMessage.notification?.let {
-            showCallNotification(it.title ?: "Incoming Call", it.body ?: "Someone is calling you.")
-        } ?: run {
-            // Handle data payload (Custom WebRTC signaling in background)
-            val title = remoteMessage.data["title"] ?: "Incoming Secure Call"
-            val body = remoteMessage.data["body"] ?: "Tap to answer"
-            showCallNotification(title, body)
+        val data = remoteMessage.data
+        val type = data["type"] ?: "MESSAGE" 
+        val title = data["title"] ?: remoteMessage.notification?.title ?: "SecureChat"
+        val body = data["body"] ?: remoteMessage.notification?.body ?: "Bạn có thông báo mới"
+        val senderId = data["senderId"]
+
+        when (type) {
+            "CALL" -> showCallNotification(title, body, senderId)
+            else -> showMessageNotification(title, body, senderId)
         }
     }
 
-    private fun showCallNotification(title: String, messageBody: String) {
+    private fun showMessageNotification(title: String, body: String, senderId: String?) {
+        val channelId = "messages_channel"
         val intent = Intent(this, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            if (senderId != null) {
+                putExtra("navigate_to", "chat/$senderId?peerName=$title")
+                putExtra("target_id", senderId)
+            }
         }
+
         val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
-            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            this, System.currentTimeMillis().toInt(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val channelId = "secure_chat_call_channel"
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(android.R.drawable.ic_dialog_email)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .build()
+
+        notifyApp(channelId, "Tin nhắn mới", notification, 1001)
+    }
+
+    private fun showCallNotification(title: String, body: String, callerId: String?) {
+        val channelId = "calls_channel"
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            if (callerId != null) {
+                putExtra("navigate_to", "home") 
+            }
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this, System.currentTimeMillis().toInt(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-        
-        val notificationBuilder = NotificationCompat.Builder(this, channelId)
+
+        val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(android.R.drawable.ic_menu_call)
             .setContentTitle(title)
-            .setContentText(messageBody)
-            .setAutoCancel(true)
-            .setSound(defaultSoundUri)
+            .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setSound(defaultSoundUri)
             .setFullScreenIntent(pendingIntent, true)
+            .setAutoCancel(true)
+            .build()
 
+        notifyApp(channelId, "Cuộc gọi đến", notification, 2002)
+    }
+
+    private fun notifyApp(channelId: String, channelName: String, notification: android.app.Notification, id: Int) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Incoming Calls",
-                NotificationManager.IMPORTANCE_HIGH
-            )
+            val importance = if (channelId == "calls_channel") NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel(channelId, channelName, importance).apply {
+                if (channelId == "calls_channel") {
+                    setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE), null)
+                }
+            }
             notificationManager.createNotificationChannel(channel)
         }
 
-        notificationManager.notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
+        notificationManager.notify(id, notification)
     }
 }

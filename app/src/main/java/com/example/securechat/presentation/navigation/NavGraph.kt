@@ -29,10 +29,24 @@ import com.example.securechat.presentation.groupchat.info.GroupInfoScreen
 import com.example.securechat.presentation.groupchat.info.GroupInfoViewModel
 
 @Composable
-fun SecureChatNavGraph() {
+fun SecureChatNavGraph(
+    startDestinationOverride: String? = null,
+    targetIdOverride: String? = null
+) {
     val navController = rememberNavController()
     val auth          = FirebaseAuth.getInstance()
-    val startDest     = remember { if (auth.currentUser != null) "home" else "login" }
+    
+    // Determine start destination
+    val startDest = remember(startDestinationOverride) {
+        if (auth.currentUser == null) {
+            "login"
+        } else if (startDestinationOverride != null) {
+            // e.g. "chat/123" or "home"
+            startDestinationOverride
+        } else {
+            "home"
+        }
+    }
 
     val callManagerViewModel: CallManagerViewModel = hiltViewModel()
     val incomingCall by callManagerViewModel.incomingCall.collectAsState()

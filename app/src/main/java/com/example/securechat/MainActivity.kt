@@ -31,10 +31,18 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var authRepository: AuthRepository
 
-    private val permissions = arrayOf(
-        Manifest.permission.CAMERA,
-        Manifest.permission.RECORD_AUDIO
-    )
+    private val permissions = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        arrayOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.POST_NOTIFICATIONS
+        )
+    } else {
+        arrayOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+        )
+    }
 
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -82,7 +90,13 @@ class MainActivity : ComponentActivity() {
             SecureChatTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     androidx.compose.foundation.layout.Box(modifier = Modifier.padding(innerPadding)) {
-                        SecureChatNavGraph()
+                        // Pass intent extras to NavGraph for potential deep linking
+                        val startDestination = intent.getStringExtra("navigate_to")
+                        val targetId = intent.getStringExtra("target_id")
+                        SecureChatNavGraph(
+                            startDestinationOverride = startDestination,
+                            targetIdOverride = targetId
+                        )
                     }
                 }
             }
