@@ -6,5 +6,10 @@ data class Message(
     val senderName: String,
     val content: String,
     val timestamp: Long,
-    val isMine: Boolean
+    val isMine: Boolean,
+    val isDeletedForEveryone: Boolean = false,
+    val deletedForUsers: Map<String, Boolean> = emptyMap(),
+    val fileUrl: String? = null,
+    val fileName: String? = null,
+    val fileType: String? = null
 )

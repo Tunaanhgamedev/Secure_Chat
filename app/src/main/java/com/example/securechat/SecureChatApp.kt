@@ -7,6 +7,5 @@ import dagger.hilt.android.HiltAndroidApp
 class SecureChatApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        // Initialization code here if required
     }
 }

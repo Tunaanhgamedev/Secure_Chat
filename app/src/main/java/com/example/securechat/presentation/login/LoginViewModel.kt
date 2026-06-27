@@ -26,10 +26,10 @@ class LoginViewModel @Inject constructor(
     private val _state = MutableStateFlow<LoginState>(LoginState.Idle)
     val state: StateFlow<LoginState> = _state.asStateFlow()
 
-    fun login(username: String, password: String) {
+    fun login(email: String, password: String) {
         viewModelScope.launch {
             _state.value = LoginState.Loading
-            val result = loginUseCase(username, password)
+            val result = loginUseCase(email, password)
             result.onSuccess { user ->
                 _state.value = LoginState.Success(user)
             }.onFailure { exception ->
