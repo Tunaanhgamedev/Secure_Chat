@@ -384,29 +384,58 @@ class ChatRepositoryImpl @Inject constructor(
     // ─── Call Signaling ─────────────────────────────────────────────────────────
 
     override fun listenForIncomingCall(): Flow<com.example.securechat.domain.model.IncomingCallModel?> = callbackFlow {
-        val myUid = auth.currentUser?.uid ?: run { trySend(null); close(); return@callbackFlow }
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    val callModel = snapshot.getValue(com.example.securechat.domain.model.IncomingCallModel::class.java)
-                    trySend(callModel)
-                } else {
-                    trySend(null)
-                }
+        var dbListener: ValueEventListener? = null
+        var currentRef: com.google.firebase.database.DatabaseReference? = null
+
+        val authListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            val uid = firebaseAuth.currentUser?.uid
+            
+            // Cleanup existing listener on auth change
+            currentRef?.let { ref ->
+                dbListener?.let { listener -> ref.removeEventListener(listener) }
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            dbListener = null
+            currentRef = null
+
+            if (uid != null) {
+                dbListener = object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        if (snapshot.exists()) {
+                            val model = snapshot.getValue(com.example.securechat.domain.model.IncomingCallModel::class.java)
+                            trySend(model)
+                        } else {
+                            trySend(null)
+                        }
+                    }
+                    override fun onCancelled(error: DatabaseError) {
+                        // Keep flow alive even on error
+                    }
+                }
+                currentRef = db.getReference("incoming_calls").child(uid)
+                currentRef?.addValueEventListener(dbListener!!)
+            } else {
+                trySend(null)
+            }
         }
-        val ref = db.getReference("incoming_calls").child(myUid)
-        ref.addValueEventListener(listener)
-        awaitClose { ref.removeEventListener(listener) }
+
+        auth.addAuthStateListener(authListener)
+        awaitClose {
+            auth.removeAuthStateListener(authListener)
+            currentRef?.let { ref ->
+                dbListener?.let { listener -> ref.removeEventListener(listener) }
+            }
+        }
     }
 
     override suspend fun startCall(targetUserId: String, callerName: String, callerPhotoUrl: String?): Result<Unit> {
         return try {
             val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
+            val callId = if (myUid < targetUserId) "${myUid}_$targetUserId" else "${targetUserId}_$myUid"
             
             // Cleanup my own node first to clear stale statuses
             db.getReference("incoming_calls").child(myUid).removeValue().await()
+            // IMPORTANT: Clear the signaling node for this specific chat to remove old ICE/SDP data
+            db.getReference("calls").child(callId).removeValue().await()
             
             val callModel = com.example.securechat.domain.model.IncomingCallModel(
                 callerId = myUid,
@@ -425,10 +454,13 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun respondToCall(callerId: String, status: String): Result<Unit> {
         return try {
             val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
+            val callId = if (myUid < callerId) "${myUid}_$callerId" else "${callerId}_$myUid"
+
             // Update the caller's node that I declined/accepted
             if (status == "ended" || status == "declined") {
                 db.getReference("incoming_calls").child(myUid).removeValue().await()
                 db.getReference("incoming_calls").child(callerId).child("status").setValue(status).await()
+                db.getReference("calls").child(callId).removeValue().await()
             } else {
                 db.getReference("incoming_calls").child(myUid).child("status").setValue(status).await()
                 db.getReference("incoming_calls").child(callerId).child("status").setValue(status).await() // Tell caller to proceed
@@ -463,11 +495,15 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun endCallSignal(targetUserId: String): Result<Unit> {
         return try {
             val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
+            val callId = if (myUid < targetUserId) "${myUid}_$targetUserId" else "${targetUserId}_$myUid"
+
             // First tell the other side it's ended
             db.getReference("incoming_calls").child(targetUserId).child("status").setValue("ended").await()
             // Then cleanup
             db.getReference("incoming_calls").child(targetUserId).removeValue().await()
             db.getReference("incoming_calls").child(myUid).removeValue().await()
+            db.getReference("calls").child(callId).removeValue().await()
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -476,7 +512,12 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun deleteMessageForMe(chatId: String, messageId: String, isGroup: Boolean): Result<Unit> {
         return try {
             val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
-            val baseNode = if (isGroup) "group_messages" else "messages/$chatId"
+            
+            // If it's a private chat, the 'chatId' passed is likely the otherUserId,
+            // so we need to calculate the actual node ID.
+            val actualChatId = if (isGroup) chatId else chatId(myUid, chatId)
+            val baseNode = if (isGroup) "group_messages" else "messages/$actualChatId"
+            
             db.getReference(baseNode).child(messageId).child("deletedForUsers").child(myUid).setValue(true).await()
             Result.success(Unit)
         } catch (e: Exception) {
@@ -487,14 +528,16 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun deleteMessageForEveryone(chatId: String, messageId: String, isGroup: Boolean): Result<Unit> {
         return try {
             val myUid = auth.currentUser?.uid ?: throw Exception("Not logged in")
-            val baseNode = if (isGroup) "group_messages" else "messages/$chatId"
+            
+            val actualChatId = if (isGroup) chatId else chatId(myUid, chatId)
+            val baseNode = if (isGroup) "group_messages" else "messages/$actualChatId"
+            
             val ref = db.getReference(baseNode).child(messageId)
             
             val snap = ref.get().await()
             val senderId = snap.child("senderId").getValue(String::class.java)
             
             // For global/private chat, only sender can delete for everyone.
-            // Custom groups handle admin rights in their own repository.
             if (senderId == myUid) {
                 ref.child("deletedForEveryone").setValue(true).await()
                 ref.child("content").setValue("Tin nhắn đã được thu hồi").await()

@@ -21,7 +21,8 @@ object DatabaseModule {
             context,
             SecureChatDatabase::class.java,
             SecureChatDatabase.DATABASE_NAME
-        ).build()
+        ).fallbackToDestructiveMigration()
+         .build()
     }
 
     @Provides

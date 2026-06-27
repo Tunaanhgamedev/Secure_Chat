@@ -73,6 +73,10 @@ class FirebaseSignalingClient @Inject constructor() {
     }
 
     data class IceCandidateModel(val candidate: String, val sdpMid: String, val sdpMLineIndex: Int)
+    
+    fun clearSignaling(callId: String) {
+        database.child(callId).removeValue()
+    }
 
     fun listenForIceCandidates(callId: String, isCaller: Boolean): Flow<IceCandidateModel> = callbackFlow {
         val role = if (isCaller) "callee" else "caller" // listen to the other side's candidates

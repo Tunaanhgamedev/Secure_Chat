@@ -180,12 +180,12 @@ fun ChatScreen(
                 actions = {
                     IconButton(
                         onClick = onNavigateToCall,
-                        enabled = isFriend
+                        enabled = true
                     ) {
                         Icon(
                             Icons.Default.Call, 
                             contentDescription = "Gọi Video", 
-                            tint = if (isFriend) MessengerBlue else SecondaryText
+                            tint = MessengerBlue
                         )
                     }
                 },

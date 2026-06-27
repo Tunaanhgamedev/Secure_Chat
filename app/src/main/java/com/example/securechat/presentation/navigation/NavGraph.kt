@@ -122,7 +122,7 @@ fun SecureChatNavGraph(
                 onProfileClick = { navController.navigate("profile") },
                 onLogout = {
                     navController.navigate("login") { 
-                        popUpTo(0) { inclusive = true }
+                        popUpTo("home") { inclusive = true }
                         launchSingleTop = true
                     }
                 }

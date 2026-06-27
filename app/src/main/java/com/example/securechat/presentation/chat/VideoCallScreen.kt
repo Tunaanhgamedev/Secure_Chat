@@ -24,8 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.securechat.data.remote.WebRtcClient
 import com.example.securechat.presentation.home.AvatarCircle
+import android.util.Log
+import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
 import org.webrtc.VideoTrack
 
@@ -36,6 +37,7 @@ fun VideoCallScreen(
 ) {
     val callState by viewModel.callState.collectAsState()
     val remoteTrack by viewModel.remoteVideoTrack.collectAsState()
+    val localTrack by viewModel.localVideoTrack.collectAsState()
     val networkMessage by viewModel.networkMessage.collectAsState()
 
     LaunchedEffect(callState) {
@@ -47,10 +49,10 @@ fun VideoCallScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1C1C1E))) {
         when (callState) {
             CallState.CALLING, CallState.RINGING -> {
-                CallingUI(viewModel.peerName, viewModel.eglContext, viewModel)
+                CallingUI(viewModel.peerName, viewModel.eglContext, localTrack)
             }
             CallState.CONNECTED -> {
-                VideoUI(remoteTrack, viewModel.eglContext, viewModel)
+                VideoUI(remoteTrack, localTrack, viewModel.eglContext)
             }
             else -> {}
         }
@@ -87,7 +89,7 @@ fun VideoCallScreen(
 }
 
 @Composable
-fun CallingUI(name: String, eglContext: EglBase.Context, viewModel: VideoCallViewModel) {
+fun CallingUI(name: String, eglContext: EglBase.Context, localTrack: VideoTrack?) {
     val infiniteTransition = rememberInfiniteTransition()
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -100,19 +102,9 @@ fun CallingUI(name: String, eglContext: EglBase.Context, viewModel: VideoCallVie
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Full screen background for local preview while calling
-        AndroidView(
-            factory = { context ->
-                SurfaceViewRenderer(context).apply {
-                    init(eglContext, null)
-                    setEnableHardwareScaler(true)
-                    setMirror(true)
-                }
-            },
-            update = { view ->
-                viewModel.getLocalVideoTrack().addSink(view)
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+        if (localTrack != null) {
+            WebRTCVideoView(videoTrack = localTrack, eglContext = eglContext, modifier = Modifier.fillMaxSize(), isMirror = true)
+        }
 
         // Dark overlay for readability
         Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
@@ -141,8 +133,7 @@ fun CallingUI(name: String, eglContext: EglBase.Context, viewModel: VideoCallVie
 }
 
 @Composable
-fun VideoUI(remoteTrack: VideoTrack?, eglContext: EglBase.Context, viewModel: VideoCallViewModel) {
-    // Large Remote View
+fun VideoUI(remoteTrack: VideoTrack?, localTrack: VideoTrack?, eglContext: EglBase.Context) {
     Box(modifier = Modifier.fillMaxSize()) {
         if (remoteTrack != null) {
             WebRTCVideoView(videoTrack = remoteTrack, eglContext = eglContext, modifier = Modifier.fillMaxSize())
@@ -157,45 +148,55 @@ fun VideoUI(remoteTrack: VideoTrack?, eglContext: EglBase.Context, viewModel: Vi
         }
         
         // Small floating local view (Top Right)
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp)
-                .size(width = 120.dp, height = 180.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.Black)
-        ) {
-            AndroidView(
-                factory = { context ->
-                    SurfaceViewRenderer(context).apply {
-                        init(eglContext, null)
-                        setEnableHardwareScaler(true)
-                        setMirror(true)
-                    }
-                },
-                update = { view ->
-                    viewModel.getLocalVideoTrack().addSink(view)
-                },
-                modifier = Modifier.fillMaxSize()
-            )
+        if (localTrack != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+                    .size(width = 120.dp, height = 180.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.Black)
+            ) {
+                WebRTCVideoView(videoTrack = localTrack, eglContext = eglContext, modifier = Modifier.fillMaxSize(), isMirror = true)
+            }
         }
     }
 }
 
 @Composable
-fun WebRTCVideoView(videoTrack: VideoTrack, eglContext: EglBase.Context, modifier: Modifier = Modifier) {
+fun WebRTCVideoView(videoTrack: VideoTrack, eglContext: EglBase.Context, modifier: Modifier = Modifier, isMirror: Boolean = false) {
+    var viewRef by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
+    
     AndroidView(
         factory = { context ->
             SurfaceViewRenderer(context).apply {
                 init(eglContext, null)
                 setEnableHardwareScaler(true)
+                setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
+                setMirror(isMirror)
+                viewRef = this
             }
         },
         update = { view ->
-            videoTrack.addSink(view)
+            view.setMirror(isMirror)
+            viewRef = view
         },
         modifier = modifier
     )
+
+    DisposableEffect(videoTrack, viewRef) {
+        val view = viewRef
+        if (view != null) {
+            Log.d("VideoCallScreen", "Adding Sink to track: ${videoTrack.id()}")
+            videoTrack.addSink(view)
+        }
+        onDispose {
+            if (view != null) {
+                Log.d("VideoCallScreen", "Removing Sink from track: ${videoTrack.id()}")
+                videoTrack.removeSink(view)
+            }
+        }
+    }
 }
 
 @Composable
